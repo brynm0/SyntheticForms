@@ -4,31 +4,31 @@ import processing.core.PVector;
 import java.util.ArrayList;
 import java.util.Stack;
 
-public class OctTree
+public class QuadTree
 {
     private static boolean treeBuilt = false;       //there is no pre-existing tree yet.
     int maxLifeSpan = 8;
     //
-    //OctTree usage: construct tree with a stack of points "p," then run updateTree as desired.
+    //QuadTree usage: construct tree with a stack of points "p," then run updateTree as desired.
     //
     private PApplet app;
-    private BBox region;
+    private BSquare region;
     private ArrayList<PVector> values;
     private Stack<PVector> pendingInsertion = new Stack<>();
-    private OctTree[] m_childNode = new OctTree[8];
+    private QuadTree[] m_childNode = new QuadTree[4];
     private byte activeChildren = 0;
     private int currLife = -1;
-    private OctTree parent;
+    private QuadTree parent;
 
-    public OctTree()
+    public QuadTree()
     {
         values = new ArrayList<>();
-        region = new BBox();
+        region = new BSquare();
         currLife = -1;
     }
 
 
-    OctTree(PApplet _ap, BBox _region, ArrayList<PVector> _values)
+    QuadTree(PApplet _ap, BSquare _region, ArrayList<PVector> _values)
     {
         app = _ap;
         region = _region;
@@ -36,7 +36,7 @@ public class OctTree
         currLife = -1;
     }
 
-    OctTree(PApplet _ap, BBox _region, Stack<PVector> _pending)
+    QuadTree(PApplet _ap, BSquare _region, Stack<PVector> _pending)
     {
         app = _ap;
         region = _region;
@@ -46,7 +46,7 @@ public class OctTree
     }
 
 
-    public OctTree(BBox _region)
+    public QuadTree(BSquare _region)
     {
         region = _region;
         values = new ArrayList<>();
@@ -81,37 +81,33 @@ public class OctTree
         PVector dimensions = PVector.sub(region.Max, region.Min);
         if (dimensions == new PVector())
         {
-            FindEnclosingCube();
+            FindEnclosingSquare();
             dimensions = PVector.sub(region.Max, region.Min);
         }
 
         PVector half = dimensions.div(2.0f);
         PVector centre = PVector.add(region.Min, half);
 
-        BBox[] octant = new BBox[8];
-        octant[0] = new BBox(region.Min, centre);
-        octant[1] = new BBox(new PVector(centre.x, region.Min.y, region.Min.z), new PVector(region.Max.x, centre.y, centre.z));
-        octant[2] = new BBox(new PVector(centre.x, region.Min.y, centre.z), new PVector(region.Max.x, centre.y, region.Max.z));
-        octant[3] = new BBox(new PVector(region.Min.x, region.Min.y, centre.z), new PVector(centre.x, centre.y, region.Max.z));
-        octant[4] = new BBox(new PVector(region.Min.x, centre.y, region.Min.z), new PVector(centre.x, region.Max.y, centre.z));
-        octant[5] = new BBox(new PVector(centre.x, centre.y, region.Min.z), new PVector(region.Max.x, region.Max.y, centre.z));
-        octant[6] = new BBox(centre, region.Max);
-        octant[7] = new BBox(new PVector(region.Min.x, centre.y, centre.z), new PVector(centre.x, region.Max.y, region.Max.z));
+        BSquare[] quadrant = new BSquare[4];
+        quadrant[0] = new BSquare(region.Min, centre);
+        quadrant[1] = new BSquare(new PVector(centre.x, region.Min.y), new PVector(region.Max.x, centre.y));
+        quadrant[2] = new BSquare(new PVector(region.Min.x, centre.y), new PVector(centre.x, region.Max.y));
+        quadrant[3] = new BSquare(centre, region.Max);
 
-        ArrayList<PVector>[] octList = new ArrayList[8];
-        for (int i = 0; i < 8; i++)
+        ArrayList<PVector>[] quadList = new ArrayList[4];
+        for (int i = 0; i < 4; i++)
         {
-            octList[i] = new ArrayList<>();
+            quadList[i] = new ArrayList<>();
         }
         ArrayList<PVector> delist = new ArrayList<>();
 
         for (PVector point : values)
         {
-            for (int a = 0; a < 8; a++)
+            for (int a = 0; a < 4; a++)
             {
-                if (octant[a].Contains(point))
+                if (quadrant[a].Contains(point))
                 {
-                    octList[a].add(point);
+                    quadList[a].add(point);
                     delist.add(point);
                     break;
                 }
@@ -119,11 +115,11 @@ public class OctTree
         }
 
         values.removeAll(delist);
-        for (int i = 0; i < 8; i++)
+        for (int i = 0; i < 4; i++)
         {
-            if (octList[i].size() != 0)
+            if (quadList[i].size() != 0)
             {
-                m_childNode[i] = CreateNode(octant[i], octList[i]);
+                m_childNode[i] = CreateNode(quadrant[i], quadList[i]);
                 activeChildren |= (byte) (1 << i);
                 m_childNode[i].BuildTree();
             }
@@ -131,22 +127,22 @@ public class OctTree
         treeBuilt = true;
     }
 
-    private OctTree CreateNode(BBox region, ArrayList<PVector> objList)  //complete & tested
+    private QuadTree CreateNode(BSquare region, ArrayList<PVector> objList)  //complete & tested
     {
         if (objList.size() == 0)
             return null;
 
-        OctTree ret = new OctTree(app, region, objList);
+        QuadTree ret = new QuadTree(app, region, objList);
         ret.parent = this;
 
         return ret;
     }
 
-    private OctTree CreateNode(BBox region, PVector Item)
+    private QuadTree CreateNode(BSquare region, PVector Item)
     {
         ArrayList<PVector> objList = new ArrayList<>(1); //sacrifice potential CPU time for a smaller memory footprint
         objList.add(Item);
-        OctTree ret = new OctTree(app, region, objList);
+        QuadTree ret = new QuadTree(app, region, objList);
         ret.parent = this;
         return ret;
     }
@@ -160,7 +156,7 @@ public class OctTree
         }
         PVector dimensions = region.Max.sub(region.Min);
         int minSize = 1;
-        if (dimensions.y <= minSize && dimensions.y <= minSize && dimensions.z <= minSize)
+        if (dimensions.y <= minSize && dimensions.y <= minSize)
         {
             values.add(item);
             return;
@@ -168,22 +164,18 @@ public class OctTree
 
         PVector half = dimensions.div(2.0f);
         PVector centre = PVector.add(region.Min, half);
-        BBox[] childOctant = new BBox[8];
-        childOctant[0] = (m_childNode[0] != null) ? m_childNode[0].region : new BBox(region.Min, centre);
-        childOctant[1] = (m_childNode[1] != null) ? m_childNode[1].region : new BBox(new PVector(centre.x, region.Min.y, region.Min.z), new PVector(region.Max.x, centre.y, centre.z));
-        childOctant[2] = (m_childNode[2] != null) ? m_childNode[2].region : new BBox(new PVector(centre.x, region.Min.y, centre.z), new PVector(region.Max.x, centre.y, region.Max.z));
-        childOctant[3] = (m_childNode[3] != null) ? m_childNode[3].region : new BBox(new PVector(region.Min.x, region.Min.y, centre.z), new PVector(centre.x, centre.y, region.Max.z));
-        childOctant[4] = (m_childNode[4] != null) ? m_childNode[4].region : new BBox(new PVector(region.Min.x, centre.y, region.Min.z), new PVector(centre.x, region.Max.y, centre.z));
-        childOctant[5] = (m_childNode[5] != null) ? m_childNode[5].region : new BBox(new PVector(centre.x, centre.y, region.Min.z), new PVector(region.Max.x, region.Max.y, centre.z));
-        childOctant[6] = (m_childNode[6] != null) ? m_childNode[6].region : new BBox(centre, region.Max);
-        childOctant[7] = (m_childNode[7] != null) ? m_childNode[7].region : new BBox(new PVector(region.Min.x, centre.y, centre.z), new PVector(centre.x, region.Max.y, region.Max.z));
+        BSquare[] childQuadrant = new BSquare[4];
+        childQuadrant[0] = (m_childNode[0] != null) ? m_childNode[0].region : new BSquare(region.Min, centre);
+        childQuadrant[1] = (m_childNode[1] != null) ? m_childNode[1].region : new BSquare(new PVector(centre.x, region.Min.y), new PVector(region.Max.x, centre.y));
+        childQuadrant[2] = (m_childNode[2] != null) ? m_childNode[2].region : new BSquare(new PVector(region.Min.x, centre.y), new PVector(centre.x, region.Max.y));
+        childQuadrant[3] = (m_childNode[3] != null) ? m_childNode[3].region : new BSquare(centre, region.Max);
 
         if (region.Contains(item))
         {
             boolean found = false;
-            for (int a = 0; a < 8; a++)
+            for (int a = 0; a < 4; a++)
             {
-                if (childOctant[a].Contains(item))
+                if (childQuadrant[a].Contains(item))
                 {
                     if (m_childNode[a] != null)
                     {
@@ -191,7 +183,7 @@ public class OctTree
                     }
                     else
                     {
-                        m_childNode[a] = CreateNode(childOctant[a], item);
+                        m_childNode[a] = CreateNode(childQuadrant[a], item);
                         activeChildren |= (byte) (1 << a);
                     }
                     found = true;
@@ -209,7 +201,7 @@ public class OctTree
 
     }
 
-    private void FindEnclosingCube()
+    private void FindEnclosingSquare()
     {
         PVector min = new PVector(Float.MAX_VALUE, Float.MAX_VALUE, Float.MAX_VALUE);
         PVector max = new PVector(Float.MIN_VALUE, Float.MIN_VALUE, Float.MAX_VALUE);
@@ -248,7 +240,7 @@ public class OctTree
     ArrayList<PVector> SearchRadius(float radius, PVector fromPoint, int depth)
     {
         ArrayList<PVector> findings = new ArrayList<>();
-        if (region.BoxSphereCollision(fromPoint, radius) || depth == 0)
+        if (region.SquareCircleCollision(fromPoint, radius) || depth == 0)
         {
             if (values.size() != 0)
             {
@@ -263,7 +255,7 @@ public class OctTree
         }
         if (activeChildren != 0)
         {
-            for (OctTree element : m_childNode)
+            for (QuadTree element : m_childNode)
             {
                 if (element != null)
                 {
@@ -279,7 +271,7 @@ public class OctTree
         CurrCount += values.size();
         if (activeChildren != 0)
         {
-            for (OctTree element : m_childNode)
+            for (QuadTree element : m_childNode)
             {
                 if (element != null)
                 {
@@ -293,14 +285,14 @@ public class OctTree
 
     private ArrayList<PVector> nearestNRecursion(PVector point, int depth, ArrayList<PVector> currentClosestPts)
     {
-        if (depth == 0 || region.BoxSphereCollision(point, PVector.dist(point, currentClosestPts.get(currentClosestPts.size() - 1))))
+        if (depth == 0 || region.SquareCircleCollision(point, PVector.dist(point, currentClosestPts.get(currentClosestPts.size() - 1))))
         {
 
             if (values.size() != 0)
             {
                 for (PVector element : values)
                 {
-                    if (!(element == point) && !(currentClosestPts.contains(element)))
+                    if (element != point && !currentClosestPts.contains(element))
                     {
                         for (int i = currentClosestPts.size() - 1; i > -1; i--)
                         {
@@ -336,7 +328,7 @@ public class OctTree
         }
         if (activeChildren != 0)
         {
-            for (OctTree element : m_childNode)
+            for (QuadTree element : m_childNode)
             {
                 if (element != null)
                 {
@@ -357,6 +349,6 @@ public class OctTree
             out.add(new PVector(Float.MAX_VALUE, Float.MAX_VALUE, Float.MAX_VALUE));
         }
         return nearestNRecursion(point, 0, out);
-
     }
+
 }

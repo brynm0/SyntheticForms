@@ -1,24 +1,24 @@
-import processing.core.PApplet;
 import processing.core.PVector;
 
-public class BBox
+public class BSquare
 {
     public PVector Min;
     public PVector Max;
 
-    public BBox(PVector min, PVector max)
+    public BSquare(PVector min, PVector max)
     {
         Min = min;
         Max = max;
     }
 
 
-    public BBox(float xlow, float ylow, float zlow, float xhigh, float yhigh, float zhigh)
+    public BSquare(float xlow, float ylow, float xhigh, float yhigh)
     {
-        Min = new PVector(xlow,ylow,zlow);
-        Max = new PVector(xhigh,yhigh,zhigh);
+        Min = new PVector(xlow, ylow, 0);
+        Max = new PVector(xhigh, yhigh, 0);
     }
-    public BBox()
+
+    public BSquare()
     {
         Min = new PVector();
         Max = new PVector();
@@ -26,7 +26,7 @@ public class BBox
 
     public boolean Contains(PVector point)
     {
-        if (point.x < Max.x && point.x > Min.x && point.y < Max.y && point.y > Min.y && point.z < Max.z && point.z > Min.z)
+        if (point.x < Max.x && point.x > Min.x && point.y < Max.y && point.y > Min.y)
         {
             return true;
         }
@@ -36,8 +36,7 @@ public class BBox
         }
     }
 
-
-    public boolean BoxSphereCollision(PVector centre, float radius)
+    public boolean SquareCircleCollision(PVector centre, float radius)
     {
         PVector closest = new PVector();
         if (centre.x < Min.x)
@@ -65,20 +64,6 @@ public class BBox
         {
             closest.y = centre.y;
         }
-
-        if (centre.z < Min.z)
-        {
-            closest.z = Min.z;
-        }
-        else if (centre.z > Max.z)
-        {
-            closest.z = Max.z;
-        }
-        else
-        {
-            closest.z = centre.z;
-        }
-
         if (PVector.dist(closest, centre) < radius)
         {
             return true;
@@ -88,7 +73,6 @@ public class BBox
             return false;
         }
     }
-
 
 
 }
