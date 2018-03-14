@@ -13,12 +13,9 @@ public class Matrix2D
 
     public Matrix2D(float a, float b, float c, float d)
     {
-        i.x = a;
-        i.y = c;
-        j.x = b;
-        j.y = d;
+        i = new PVector(a,c);
+        j = new PVector(b,d);
     }
-
 
     public Matrix2D()
     {
@@ -60,7 +57,5 @@ public class Matrix2D
         outputVec.x = vecToTransform.x * inverseI.x + vecToTransform.x * inverseI.y;
         outputVec.y = vecToTransform.y * inverseJ.x + vecToTransform.y * inverseJ.y;
         return outputVec;
-
     }
-
 }

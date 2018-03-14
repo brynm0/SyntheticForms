@@ -5,23 +5,39 @@ public class BBox
 {
     public PVector Min;
     public PVector Max;
+    public PApplet app;
 
-    public BBox(PVector min, PVector max)
+    public BBox(PVector min, PVector max, PApplet _app)
     {
         Min = min;
         Max = max;
+        app = _app;
     }
 
 
-    public BBox(float xlow, float ylow, float zlow, float xhigh, float yhigh, float zhigh)
+    public BBox(float xlow, float ylow, float zlow, float xhigh, float yhigh, float zhigh, PApplet _app)
     {
         Min = new PVector(xlow,ylow,zlow);
         Max = new PVector(xhigh,yhigh,zhigh);
+        app = _app;
     }
-    public BBox()
+    public BBox(PApplet _app)
     {
         Min = new PVector();
         Max = new PVector();
+        app = _app;
+    }
+
+    public void draw()
+    {
+        app.line(Min.x, Min.y, Min.z, Max.x, Min.y, Min.z);
+        app.line(Min.x, Min.y, Min.z, Min.x, Max.y, Min.z);
+        app.line(Min.x, Min.y, Min.z, Min.x, Min.y, Max.z);
+
+        app.line(Max.x, Max.y, Max.z, Min.x, Max.y, Max.z);
+        app.line(Max.x, Max.y, Max.z, Max.x, Min.y, Max.z);
+        app.line(Max.x, Max.y, Max.z, Max.x, Max.y, Min.z);
+
     }
 
     public boolean Contains(PVector point)

@@ -2,16 +2,18 @@ import processing.core.PApplet;
 import processing.core.PVector;
 
 import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.PriorityQueue;
 import java.util.Stack;
 
 public class OctTree
 {
     private static boolean treeBuilt = false;       //there is no pre-existing tree yet.
-    int maxLifeSpan = 8;
     //
     //OctTree usage: construct tree with a stack of points "p," then run updateTree as desired.
     //
-    private PApplet app;
+    public PApplet app;
+    int maxLifeSpan = 8;
     private BBox region;
     private ArrayList<PVector> values;
     private Stack<PVector> pendingInsertion = new Stack<>();
@@ -20,10 +22,10 @@ public class OctTree
     private int currLife = -1;
     private OctTree parent;
 
-    public OctTree()
+    public OctTree(PApplet _app)
     {
         values = new ArrayList<>();
-        region = new BBox();
+        region = new BBox(_app);
         currLife = -1;
     }
 
@@ -51,6 +53,86 @@ public class OctTree
         region = _region;
         values = new ArrayList<>();
         currLife = -1;
+    }
+
+    public static BBox getBBox(ArrayList<PVector> positions, PApplet app)
+    {
+        float xmin = Float.MAX_VALUE;
+        float xmax = Float.MIN_VALUE;
+        float ymin = Float.MAX_VALUE;
+        float ymax = Float.MIN_VALUE;
+        float zmin = Float.MAX_VALUE;
+        float zmax = Float.MIN_VALUE;
+        for (PVector element : positions)
+        {
+            float oldXMax = xmax;
+            if (element.x < xmin)
+            {
+                xmin = element.x;
+            }
+            if (element.x > xmax)
+            {
+                xmax = element.x;
+            }
+
+            if (element.y < ymin)
+            {
+                ymin = element.y;
+            }
+            if (element.y > ymax)
+            {
+                ymax = element.y;
+            }
+
+            if (element.z < zmin)
+            {
+                zmin = element.z;
+            }
+            if (element.z > zmax)
+            {
+                zmax = element.z;
+            }
+
+        }
+        float xDist = Math.abs(xmax - xmin);
+        float yDist = Math.abs(ymax - ymin);
+        float zDist = Math.abs(zmax - zmin);
+        int longest = 0;
+        if (xDist > yDist && xDist > zDist)
+        {
+            longest = (int) Math.ceil(xDist);
+        }
+        else if (yDist > xDist && yDist > zDist)
+        {
+            longest = (int) Math.ceil(yDist);
+        }
+        else if (zDist > xDist && zDist > yDist)
+        {
+            longest = (int) Math.ceil(zDist);
+        }
+        longest = longest - 1;
+        longest |= longest >> 1;
+        longest |= longest >> 2;
+        longest |= longest >> 4;
+        longest |= longest >> 8;
+        longest |= longest >> 16;
+        longest = longest + 1;
+        BBox region = new BBox((xmax + xmin) / 2 - (longest / 2), (ymin + ymax) / 2 - (longest / 2), (zmin + zmax) / 2 - (longest / 2),
+                (xmin + xmax) / 2 + longest / 2, (ymin + ymax) / 2 + longest / 2, (zmin + zmax) / 2 + longest / 2, app);
+
+        return region;
+    }
+
+    void draw()
+    {
+        region.draw();
+        for (OctTree child : m_childNode)
+        {
+            if (child != null)
+            {
+                child.draw();
+            }
+        }
     }
 
     void UpdateTree()
@@ -89,14 +171,14 @@ public class OctTree
         PVector centre = PVector.add(region.Min, half);
 
         BBox[] octant = new BBox[8];
-        octant[0] = new BBox(region.Min, centre);
-        octant[1] = new BBox(new PVector(centre.x, region.Min.y, region.Min.z), new PVector(region.Max.x, centre.y, centre.z));
-        octant[2] = new BBox(new PVector(centre.x, region.Min.y, centre.z), new PVector(region.Max.x, centre.y, region.Max.z));
-        octant[3] = new BBox(new PVector(region.Min.x, region.Min.y, centre.z), new PVector(centre.x, centre.y, region.Max.z));
-        octant[4] = new BBox(new PVector(region.Min.x, centre.y, region.Min.z), new PVector(centre.x, region.Max.y, centre.z));
-        octant[5] = new BBox(new PVector(centre.x, centre.y, region.Min.z), new PVector(region.Max.x, region.Max.y, centre.z));
-        octant[6] = new BBox(centre, region.Max);
-        octant[7] = new BBox(new PVector(region.Min.x, centre.y, centre.z), new PVector(centre.x, region.Max.y, region.Max.z));
+        octant[0] = new BBox(region.Min, centre, app);
+        octant[1] = new BBox(new PVector(centre.x, region.Min.y, region.Min.z), new PVector(region.Max.x, centre.y, centre.z), app);
+        octant[2] = new BBox(new PVector(centre.x, region.Min.y, centre.z), new PVector(region.Max.x, centre.y, region.Max.z), app);
+        octant[3] = new BBox(new PVector(region.Min.x, region.Min.y, centre.z), new PVector(centre.x, centre.y, region.Max.z), app);
+        octant[4] = new BBox(new PVector(region.Min.x, centre.y, region.Min.z), new PVector(centre.x, region.Max.y, centre.z), app);
+        octant[5] = new BBox(new PVector(centre.x, centre.y, region.Min.z), new PVector(region.Max.x, region.Max.y, centre.z), app);
+        octant[6] = new BBox(centre, region.Max, app);
+        octant[7] = new BBox(new PVector(region.Min.x, centre.y, centre.z), new PVector(centre.x, region.Max.y, region.Max.z), app);
 
         ArrayList<PVector>[] octList = new ArrayList[8];
         for (int i = 0; i < 8; i++)
@@ -169,14 +251,14 @@ public class OctTree
         PVector half = dimensions.div(2.0f);
         PVector centre = PVector.add(region.Min, half);
         BBox[] childOctant = new BBox[8];
-        childOctant[0] = (m_childNode[0] != null) ? m_childNode[0].region : new BBox(region.Min, centre);
-        childOctant[1] = (m_childNode[1] != null) ? m_childNode[1].region : new BBox(new PVector(centre.x, region.Min.y, region.Min.z), new PVector(region.Max.x, centre.y, centre.z));
-        childOctant[2] = (m_childNode[2] != null) ? m_childNode[2].region : new BBox(new PVector(centre.x, region.Min.y, centre.z), new PVector(region.Max.x, centre.y, region.Max.z));
-        childOctant[3] = (m_childNode[3] != null) ? m_childNode[3].region : new BBox(new PVector(region.Min.x, region.Min.y, centre.z), new PVector(centre.x, centre.y, region.Max.z));
-        childOctant[4] = (m_childNode[4] != null) ? m_childNode[4].region : new BBox(new PVector(region.Min.x, centre.y, region.Min.z), new PVector(centre.x, region.Max.y, centre.z));
-        childOctant[5] = (m_childNode[5] != null) ? m_childNode[5].region : new BBox(new PVector(centre.x, centre.y, region.Min.z), new PVector(region.Max.x, region.Max.y, centre.z));
-        childOctant[6] = (m_childNode[6] != null) ? m_childNode[6].region : new BBox(centre, region.Max);
-        childOctant[7] = (m_childNode[7] != null) ? m_childNode[7].region : new BBox(new PVector(region.Min.x, centre.y, centre.z), new PVector(centre.x, region.Max.y, region.Max.z));
+        childOctant[0] = (m_childNode[0] != null) ? m_childNode[0].region : new BBox(region.Min, centre, app);
+        childOctant[1] = (m_childNode[1] != null) ? m_childNode[1].region : new BBox(new PVector(centre.x, region.Min.y, region.Min.z), new PVector(region.Max.x, centre.y, centre.z), app);
+        childOctant[2] = (m_childNode[2] != null) ? m_childNode[2].region : new BBox(new PVector(centre.x, region.Min.y, centre.z), new PVector(region.Max.x, centre.y, region.Max.z), app);
+        childOctant[3] = (m_childNode[3] != null) ? m_childNode[3].region : new BBox(new PVector(region.Min.x, region.Min.y, centre.z), new PVector(centre.x, centre.y, region.Max.z), app);
+        childOctant[4] = (m_childNode[4] != null) ? m_childNode[4].region : new BBox(new PVector(region.Min.x, centre.y, region.Min.z), new PVector(centre.x, region.Max.y, centre.z), app);
+        childOctant[5] = (m_childNode[5] != null) ? m_childNode[5].region : new BBox(new PVector(centre.x, centre.y, region.Min.z), new PVector(region.Max.x, region.Max.y, centre.z), app);
+        childOctant[6] = (m_childNode[6] != null) ? m_childNode[6].region : new BBox(centre, region.Max, app);
+        childOctant[7] = (m_childNode[7] != null) ? m_childNode[7].region : new BBox(new PVector(region.Min.x, centre.y, centre.z), new PVector(centre.x, region.Max.y, region.Max.z), app);
 
         if (region.Contains(item))
         {
@@ -272,91 +354,5 @@ public class OctTree
             }
         }
         return findings;
-    }
-
-    public int totalValueCount(int CurrCount)
-    {
-        CurrCount += values.size();
-        if (activeChildren != 0)
-        {
-            for (OctTree element : m_childNode)
-            {
-                if (element != null)
-                {
-                    CurrCount = element.totalValueCount(CurrCount);
-                }
-            }
-        }
-
-        return CurrCount;
-    }
-
-    private ArrayList<PVector> nearestNRecursion(PVector point, int depth, ArrayList<PVector> currentClosestPts)
-    {
-        if (depth == 0 || region.BoxSphereCollision(point, PVector.dist(point, currentClosestPts.get(currentClosestPts.size() - 1))))
-        {
-
-            if (values.size() != 0)
-            {
-                for (PVector element : values)
-                {
-                    if (!(element == point) && !(currentClosestPts.contains(element)))
-                    {
-                        for (int i = currentClosestPts.size() - 1; i > -1; i--)
-                        {
-                            float distanceFromPointToCurrent = PVector.dist(point, currentClosestPts.get(i));
-                            if (PVector.dist(point, element) < distanceFromPointToCurrent && (i == 0))
-                            {
-                                if (!(currentClosestPts.size() == 1))
-                                {
-                                    currentClosestPts.set(i + 1, currentClosestPts.get(i));
-                                }
-                                currentClosestPts.set(i, element);
-                                break;
-                            }
-                            else if (PVector.dist(point, element) < distanceFromPointToCurrent
-                                    && currentClosestPts.size() > 1 && !(PVector.dist(point, element) < PVector.dist(point, currentClosestPts.get(i - 1))))
-                            {
-                                if (i != currentClosestPts.size() - 1)
-                                {
-                                    currentClosestPts.set(i + 1, currentClosestPts.get(i));
-                                }
-                                currentClosestPts.set(i, element);
-                                break;
-                            }
-                            if (PVector.dist(point, element) < distanceFromPointToCurrent && i != currentClosestPts.size() - 1 && currentClosestPts.size() > 1)
-                            {
-                                currentClosestPts.set(i + 1, currentClosestPts.get(i));
-                                currentClosestPts.set(i, new PVector(Float.MAX_VALUE, Float.MAX_VALUE, Float.MAX_VALUE));
-                            }
-                        }
-                    }
-                }
-            }
-        }
-        if (activeChildren != 0)
-        {
-            for (OctTree element : m_childNode)
-            {
-                if (element != null)
-                {
-                    currentClosestPts = (element.nearestNRecursion(point, depth + 1, currentClosestPts));
-                }
-            }
-        }
-        return currentClosestPts;
-
-    }
-
-
-    ArrayList<PVector> findClosestN(PVector point, int count)
-    {
-        ArrayList<PVector> out = new ArrayList<>(count);
-        for (int i = 0; i < count; i++)
-        {
-            out.add(new PVector(Float.MAX_VALUE, Float.MAX_VALUE, Float.MAX_VALUE));
-        }
-        return nearestNRecursion(point, 0, out);
-
     }
 }
