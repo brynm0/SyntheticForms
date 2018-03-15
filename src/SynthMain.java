@@ -1,4 +1,3 @@
-import controlP5.ControlP5;
 import peasy.PeasyCam;
 import processing.core.PApplet;
 import processing.core.PVector;
@@ -18,16 +17,16 @@ public class SynthMain extends PApplet
     private KDTree meshVertexTree;
     private KDTree boidTree;
     private PeasyCam camera;
-    private ControlP5 cp5;
     private Mesh m;
     private PVector[] population;
     private ArrayList<PVector> normalList;
     private ArrayList<Boid> boids;
     private boolean paused = false;
     private boolean drawMesh = true;
-    private int boidCount = 1000;
+    private int boidCount = 1250;
     private boolean reset = false;
     private int frameNum = 0;
+    private boolean twistDirection = false;
 
     public static void main(String[] args)
     {
@@ -45,7 +44,9 @@ public class SynthMain extends PApplet
         ArrayList<Integer> indexList = new ArrayList<Integer>();
         for (int i = 0; i < list.size(); i++)
             if (obj.equals(list.get(i)))
+            {
                 indexList.add(i);
+            }
         return indexList;
 
     }
@@ -58,10 +59,21 @@ public class SynthMain extends PApplet
     public void setup()
     {
         camera = new PeasyCam(this, 500);
-        cp5 = new ControlP5(this);
 
         population = new PVector[boidCount];
-        ArrayList<Mesh> meshList = Mesh.readMeshes("/home/bryn/BaseMeshes/4.obj", this);
+        String OS = System.getProperty("os.name");
+        System.out.println(OS);
+        ArrayList<Mesh> meshList;
+        if (OS.equals("Windows 10"))
+        {
+            meshList = Mesh.readMeshes("/Users/evilg/Google%20Drive/Architecture/2018/Semester%201/Synthetic%20Forms/Week%202b/Base%20Mesh/12.obj", this);
+
+        } else
+        {
+            meshList = Mesh.readMeshes("/home/bryn/BaseMeshes/4.obj", this);
+
+        }
+
         for (Mesh mesh : meshList)
         {
             if (mesh.vertices.size() != 0)
@@ -69,9 +81,8 @@ public class SynthMain extends PApplet
                 m = mesh;
                 break;
             }
-
         }
-        m.scale(0.5f, new PVector());
+        m.scale(3, m.getMeshAverage());
         m = m.convQuadsToTris();
         PVector[] points = new PVector[m.vertices.size()];
         for (int i = 0; i < m.vertices.size(); i++)
@@ -85,9 +96,8 @@ public class SynthMain extends PApplet
         for (int i = 0; i < population.length; i++)
         {
             Boid newboid = new Boid(random(5, 10), population[i], random(1, 3),
-                    random(1, 3), normalList.get(i), random(450, 750), this);
+                                    random(1, 3), normalList.get(i), random(250, 500), this);
             boids.add(newboid);
-
         }
         m.popNoise();
         boidTree = new KDTree(population, 0, this);
@@ -100,15 +110,19 @@ public class SynthMain extends PApplet
         PVector randVertex = m.vertices.get(randIndex);
         int normalIndex = (m.faceVerts.indexOf(randIndex));
         normalIndex = m.faceNormals.get(normalIndex);
-        PVector randNormal = m.normals.get(normalIndex);
-        twistBoid = new Boid(1, randVertex.copy(), 2, 3, randNormal.copy(), 500, this);
+        float rand = random(0, 1);
+        PVector randNormal = m.normals.get(normalIndex).copy();
+        if (random(1) < 0.5)
+        {
+            twistDirection = !twistDirection;
+        }
+        twistBoid = new Boid(1, randVertex.copy(), 5, 5, randNormal, 500, this);
     }
 
     public void draw()
     {
         frameNum++;
         background(255);
-
         if (drawMesh)
         {
             fill(255);
@@ -119,8 +133,6 @@ public class SynthMain extends PApplet
             boidLoop();
         }
         boidDraw();
-        gui();
-
     }
 
 
@@ -141,32 +153,28 @@ public class SynthMain extends PApplet
             {
                 boids.get(i).align(boidTree, boids, tempPop);
                 boids.get(i).cohesionRepulsion(boidTree);
-                boids.get(i).followMeshNoiseField(m, meshVertexTree, 0.2f, false);
-                boids.get(i).twist(new Plane(twistBoid.position.copy(), twistBoid.normal.copy()));
+                boids.get(i).followMeshNoiseField(m, meshVertexTree, 0.1f, false);
+                boids.get(i).twist(new Plane(twistBoid.position.copy(), twistBoid.normal.copy()), twistDirection);
             }
             if (frameNum % ceil(random(10, 30)) == 0)
             {
                 //boids.get(i).wanderOnMesh(10, m);
-
             }
             boids.get(i).integrate();
 
             population[i] = boids.get(i).position;
         }
-
-
     }
 
     void boidDraw()
     {
         for (Boid element : boids)
         {
-            element.draw(50);
+            element.draw(50, false);
             pushMatrix();
             translate(element.position.x, element.position.y, element.position.z);
             ellipse(0, 0, 50, 50);
             popMatrix();
-
         }
         pushMatrix();
         translate(twistBoid.position.x, twistBoid.position.y, twistBoid.position.z);
@@ -175,16 +183,6 @@ public class SynthMain extends PApplet
         ellipse(0, 0, 100, 100);
         noFill();
         popMatrix();
-
-    }
-
-    void gui()
-    {
-        hint(DISABLE_DEPTH_TEST);
-        camera.beginHUD();
-        cp5.draw();
-        camera.endHUD();
-        hint(ENABLE_DEPTH_TEST);
     }
 
 
@@ -193,48 +191,37 @@ public class SynthMain extends PApplet
         if (key == 'h')
         {
             drawMesh = !drawMesh;
-        }
-        else if (key == 'r')
+        } else if (key == 'r')
         {
             reset = !reset;
-        }
-        else if (key == BACKSPACE)
+        } else if (key == BACKSPACE)
         {
             paused = !paused;
-        }
-        else if (key == 'w')
+        } else if (key == 'w')
         {
             x += 10;
-        }
-        else if (key == 's')
+        } else if (key == 's')
         {
             x -= 10;
-        }
-        else if (key == 'a')
+        } else if (key == 'a')
         {
             y += 10;
-        }
-        else if (key == 'd')
+        } else if (key == 'd')
         {
             y -= 10;
-        }
-        else if (key == 'q')
+        } else if (key == 'q')
         {
             z += 10;
-        }
-        else if (key == 'e')
+        } else if (key == 'e')
         {
             z -= 10;
-        }
-        else if (key == ENTER)
+        } else if (key == ENTER)
         {
             saveBoids();
-        }
-        else if (key == 'u')
+        } else if (key == 'u')
         {
             setTwistBoid();
-        }
-        else if (key == 'm')
+        } else if (key == 'm')
         {
             drawneighbours = !drawneighbours;
         }
@@ -264,78 +251,49 @@ public class SynthMain extends PApplet
         try
         {
             System.out.println("writing positions");
-            out = new PrintWriter(fileID + "positionX" + ".txt");
+            out = new PrintWriter(fileID + "position" + ".txt");
             for (PVector position : population)
             {
-                out.println(position.x);
-            }
-            out.close();
-            out = new PrintWriter(fileID + "positionY" + ".txt");
-            for (PVector position : population)
-            {
-                out.println(position.y);
-            }
-            out.close();
-            out = new PrintWriter(fileID + "positionZ" + ".txt");
-            for (PVector position : population)
-            {
-                out.println(position.z);
+                out.println(position.x + ", " + position.y + ", " + position.z);
             }
             out.close();
             System.out.println("done");
+
             System.out.println("writing planes");
-
-            outX = new PrintWriter(fileID + "planeXx" + ".txt");
-            outY = new PrintWriter(fileID + "planeXy" + ".txt");
-            outZ = new PrintWriter(fileID + "planeXz" + ".txt");
-
+            outX = new PrintWriter(fileID + "planeX" + ".txt");
             for (Plane p : plArray)
             {
-                outX.println(p.x.x);
-                outY.println(p.x.y);
-                outZ.println(p.x.z);
+                outX.println(p.x.x + ", " + p.x.y + ", " + p.x.z);
             }
             outX.close();
-            outY.close();
-            outZ.close();
 
-            outX = new PrintWriter(fileID + "planeYx" + ".txt");
-            outY = new PrintWriter(fileID + "planeYy" + ".txt");
-            outZ = new PrintWriter(fileID + "planeYz" + ".txt");
-
+            outY = new PrintWriter(fileID + "planeY" + ".txt");
             for (Plane p : plArray)
             {
-                outX.println(p.y.x);
-                outY.println(p.y.y);
-                outZ.println(p.y.z);
+                outY.println(p.y.x + ", " + p.y.y + ", " + p.y.z);
             }
-            outX.close();
             outY.close();
-            outZ.close();
 
-            outX = new PrintWriter(fileID + "planeZx" + ".txt");
-            outY = new PrintWriter(fileID + "planeZy" + ".txt");
-            outZ = new PrintWriter(fileID + "planeZz" + ".txt");
-
+            outZ = new PrintWriter(fileID + "planeZ" + ".txt");
             for (Plane p : plArray)
             {
-                outX.println(p.z.x);
-                outY.println(p.z.y);
-                outZ.println(p.z.z);
+                outZ.println(p.z.x + ", " + p.z.y + ", " + p.z.z);
             }
-            outX.close();
-            outY.close();
             outZ.close();
+
+            PrintWriter outDist = new PrintWriter(fileID + "distance.txt");
+            for (Boid b : boids)
+            {
+                float dist = boidTree.nearestNeighbor(b.position).dist(b.position);
+                outDist.println(dist);
+            }
+            outDist.close();
             System.out.println("done");
 
-
-        }
-        catch (IOException e)
+        } catch (IOException e)
         {
             System.out.println("Unhandled IO Exception " + e);
         }
-
-
     }
 
     void meshCPDebug()
@@ -344,26 +302,18 @@ public class SynthMain extends PApplet
         PVector[] cp = m.closestPointOnMesh(position, meshVertexTree);
 
         pushMatrix();
-
         translate(position.x, position.y, position.z);
         fill(255, 0, 0);
         ellipse(0, 0, 25, 25);
-
         popMatrix();
 
         pushMatrix();
-
         translate(cp[0].x, cp[0].y, cp[0].z);
         fill(0, 255, 0);
         ellipse(0, 0, 25, 25);
-
         popMatrix();
-
         line(position.x, position.y, position.z, cp[0].x, cp[0].y, cp[0].z);
-
-
     }
-
 
 
 }

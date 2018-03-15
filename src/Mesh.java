@@ -57,6 +57,18 @@ public class Mesh
         app = _app;
     }
 
+    public PVector getMeshAverage()
+    {
+        int vertexCount = vertices.size();
+        PVector average = new PVector();
+        for (PVector vertex : vertices             )
+        {
+            average.add(vertex.copy());
+        }
+        average.div(vertexCount);
+        return average;
+    }
+
     public static ArrayList<Mesh> readMeshes(String absolutePath, PApplet app)
     {
         Charset charset = Charset.forName("US-ASCII");
@@ -275,7 +287,6 @@ public class Mesh
         int currIndex = 0;
         for (int i = 0; i < count; i++)
         {
-
             //Pick a random face
             assert (faceVerts.size() % 4 == 0);
             int faceIndex = PApplet.floor(app.random(faceVerts.size()));
@@ -289,11 +300,8 @@ public class Mesh
             int index3 = faceVerts.get(faceIndex + 2);
             int normalIndex3 = faceNormals.get(faceIndex + 2);
 
-
             PVector p1 = vertices.get(index1);
-
             PVector p2 = vertices.get(index2);
-
             PVector p3 = vertices.get(index3);
 
             PVector param = new PVector(app.random(1), app.random(1));

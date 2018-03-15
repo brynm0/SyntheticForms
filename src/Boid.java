@@ -65,11 +65,16 @@ public class Boid
         addForce(steer);
     }
 
-    public void twist(Plane twistingPlane)
+    public void twist(Plane twistingPlane, boolean direction)
     {
         //cross the vector that points to the plane w the planes normal
         PVector agentToPlane = PVector.sub(twistingPlane.origin, position);
         PVector twist = agentToPlane.cross(twistingPlane.z);
+        if (direction)
+        {
+            twist.mult(-1);
+        }
+
         twist.setMag(maxVel);
         float dist = PVector.dist(twistingPlane.origin, position);
         twist.mult(1000 / (dist));
@@ -273,7 +278,7 @@ public class Boid
         acceleration = new PVector();
     }
 
-    public void draw(float scalar)
+    public void draw(float scalar, boolean drawSight)
     {
         app.pushMatrix();
         app.translate(position.x, position.y, position.z);
@@ -286,6 +291,16 @@ public class Boid
         app.line(0, 0, 0, scalar * v.x, scalar * v.y, scalar * v.z);
 
         app.popMatrix();
+        if (drawSight)
+        {
+            app.pushMatrix();
+            app.translate(position.x, position.y, position.z);
+            app.ellipse(0, 0, sightOuter, sightOuter);
+            app.stroke(0, 255, 0);
+            app.ellipse(0, 0, sightInner, sightInner);
+            app.popMatrix();
+        }
+
     }
 
 }

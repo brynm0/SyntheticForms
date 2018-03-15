@@ -134,11 +134,12 @@ public class KDTree
 //Move down nodes til find a leaf
         boolean left = false;
         boolean right = false;
-        if (value != null && currentBest.equals(new PVector(Float.MAX_VALUE, Float.MAX_VALUE, Float.MAX_VALUE)))
+        assert point != null;
+        if (value != null && !value.equals(point) && currentBest.equals(new PVector(Float.MAX_VALUE, Float.MAX_VALUE, Float.MAX_VALUE)))
         {
             currentBest = value;
         }
-        else if (value != null)
+        else if (value != null && !value.equals(point))
         {
             if (currentBest.dist(point) > value.dist(point))
             {
@@ -150,14 +151,14 @@ public class KDTree
             if (this.depth % 3 == 0)
             {
                 //x
-                if (point.x <= axisLocation)
+                if (point.x <= axisLocation && leftChild != null)
                 {
                     //check left
                     currentBest = leftChild.nearestNeighbourR(point, currentBest);
                     left = true;
                     numSearches++;
                 }
-                else
+                else if (rightChild != null)
                 {
                     //check y
                     currentBest = rightChild.nearestNeighbourR(point, currentBest);
@@ -169,7 +170,7 @@ public class KDTree
             else if (this.depth % 3 == 1)
             {
                 //y
-                if (point.y <= axisLocation)
+                if (point.y <= axisLocation && leftChild != null)
                 {
                     //check left
                     currentBest = leftChild.nearestNeighbourR(point, currentBest);
@@ -177,7 +178,8 @@ public class KDTree
                     numSearches++;
 
                 }
-                else
+                else if (rightChild != null)
+
                 {
                     //check y
                     currentBest = rightChild.nearestNeighbourR(point, currentBest);
@@ -190,7 +192,7 @@ public class KDTree
             else
             {
                 //z
-                if (point.z <= axisLocation)
+                if (point.z <= axisLocation && leftChild != null)
                 {
                     //check left
                     currentBest = leftChild.nearestNeighbourR(point, currentBest);
@@ -198,7 +200,8 @@ public class KDTree
                     numSearches++;
 
                 }
-                else
+                else if (rightChild != null)
+
                 {
                     //check y
                     currentBest = rightChild.nearestNeighbourR(point, currentBest);

@@ -2,7 +2,8 @@
 <project version="4">
   <component name="ProjectModuleManager">
     <modules>
-      <module fileurl="file://$PROJECT_DIR$/SyntheticForms.iml" filepath="$PROJECT_DIR$/SyntheticForms.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/SyntheticForms.iml" filepath="$PROJECT_DIR$/.idea/SyntheticForms.iml" />
+      <module fileurl="file://C:\Users\evilg\IdeaProjects\SyntheticForms\SyntheticForms.iml" filepath="C:\Users\evilg\IdeaProjects\SyntheticForms\SyntheticForms.iml" />
     </modules>
   </component>
 </project>
