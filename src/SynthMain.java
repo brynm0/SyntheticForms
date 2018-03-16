@@ -10,6 +10,11 @@ import java.util.Arrays;
 public class SynthMain extends PApplet
 {
     public static boolean drawneighbours = false;
+    private boolean twistDirection = false;
+    private boolean paused = false;
+    private boolean drawMesh = true;
+    private boolean reset = false;
+
     Boid twistBoid;
     private float x = 0;
     private float y = 0;
@@ -21,24 +26,13 @@ public class SynthMain extends PApplet
     private PVector[] population;
     private ArrayList<PVector> normalList;
     private ArrayList<Boid> boids;
-    private boolean paused = false;
-    private boolean drawMesh = true;
     private int boidCount = 1250;
-    private boolean reset = false;
     private int frameNum = 0;
-    private boolean twistDirection = false;
 
     public static void main(String[] args)
     {
         PApplet.main("SynthMain", args);
     }
-
-    public static PVector lerpVector(PVector A, PVector B, float t)
-    {
-        assert (t <= 1) && (t >= 0);
-        return PVector.add(PVector.mult(A, t), PVector.mult(B, 1.0f - t));
-    }
-
     public static ArrayList<Integer> indexOfAll(Object obj, ArrayList list)
     {
         ArrayList<Integer> indexList = new ArrayList<Integer>();
@@ -56,6 +50,7 @@ public class SynthMain extends PApplet
         size(1000, 800, P3D);
     }
 
+
     public void setup()
     {
         camera = new PeasyCam(this, 500);
@@ -68,7 +63,8 @@ public class SynthMain extends PApplet
         {
             meshList = Mesh.readMeshes("/Users/evilg/Google%20Drive/Architecture/2018/Semester%201/Synthetic%20Forms/Week%202b/Base%20Mesh/12.obj", this);
 
-        } else
+        }
+        else
         {
             meshList = Mesh.readMeshes("/home/bryn/BaseMeshes/4.obj", this);
 
@@ -96,7 +92,7 @@ public class SynthMain extends PApplet
         for (int i = 0; i < population.length; i++)
         {
             Boid newboid = new Boid(random(5, 10), population[i], random(1, 3),
-                                    random(1, 3), normalList.get(i), random(250, 500), this);
+                    random(1, 3), normalList.get(i), random(250, 500), this);
             boids.add(newboid);
         }
         m.popNoise();
@@ -191,37 +187,48 @@ public class SynthMain extends PApplet
         if (key == 'h')
         {
             drawMesh = !drawMesh;
-        } else if (key == 'r')
+        }
+        else if (key == 'r')
         {
             reset = !reset;
-        } else if (key == BACKSPACE)
+        }
+        else if (key == BACKSPACE)
         {
             paused = !paused;
-        } else if (key == 'w')
+        }
+        else if (key == 'w')
         {
             x += 10;
-        } else if (key == 's')
+        }
+        else if (key == 's')
         {
             x -= 10;
-        } else if (key == 'a')
+        }
+        else if (key == 'a')
         {
             y += 10;
-        } else if (key == 'd')
+        }
+        else if (key == 'd')
         {
             y -= 10;
-        } else if (key == 'q')
+        }
+        else if (key == 'q')
         {
             z += 10;
-        } else if (key == 'e')
+        }
+        else if (key == 'e')
         {
             z -= 10;
-        } else if (key == ENTER)
+        }
+        else if (key == ENTER)
         {
             saveBoids();
-        } else if (key == 'u')
+        }
+        else if (key == 'u')
         {
             setTwistBoid();
-        } else if (key == 'm')
+        }
+        else if (key == 'm')
         {
             drawneighbours = !drawneighbours;
         }
@@ -290,7 +297,8 @@ public class SynthMain extends PApplet
             outDist.close();
             System.out.println("done");
 
-        } catch (IOException e)
+        }
+        catch (IOException e)
         {
             System.out.println("Unhandled IO Exception " + e);
         }

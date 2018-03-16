@@ -4,6 +4,7 @@ import processing.core.PVector;
 
 import java.io.BufferedReader;
 import java.io.IOException;
+import java.io.PrintWriter;
 import java.net.URI;
 import java.nio.charset.Charset;
 import java.nio.file.Files;
@@ -15,21 +16,19 @@ public class Mesh
 {
 
     public ArrayList<PVector> vertices;
-    public ArrayList<PVector> texCoords;
     public ArrayList<PVector> normals;
-    public ArrayList<PVector> parameters;
     public ArrayList<Integer> faceVerts;
-    public ArrayList<Integer> faceTexCoords;
     public ArrayList<Integer> faceNormals;
-    public PApplet app;
-    int numFaces = 0;
+    private ArrayList<PVector> texCoords;
+    private ArrayList<Integer> faceTexCoords;
+    private PApplet app;
+    private int numFaces = 0;
 
-    public Mesh(PApplet _ap)
+    private Mesh(PApplet _ap)
     {
         vertices = new ArrayList<>();
         texCoords = new ArrayList<>();
         normals = new ArrayList<>();
-        parameters = new ArrayList<>();
 
         faceVerts = new ArrayList<>();
         faceTexCoords = new ArrayList<>();
@@ -37,19 +36,17 @@ public class Mesh
         app = _ap;
     }
 
-    public Mesh(ArrayList<PVector> _vertices,
-                ArrayList<PVector> _texCoords,
-                ArrayList<PVector> _normals,
-                ArrayList<PVector> _parameters,
-                ArrayList<Integer> _faces,
-                ArrayList<Integer> _faceTex,
-                ArrayList<Integer> _faceNormals,
-                PApplet _app)
+    private Mesh(ArrayList<PVector> _vertices,
+                 ArrayList<PVector> _texCoords,
+                 ArrayList<PVector> _normals,
+                 ArrayList<Integer> _faces,
+                 ArrayList<Integer> _faceTex,
+                 ArrayList<Integer> _faceNormals,
+                 PApplet _app)
     {
         vertices = _vertices;
         texCoords = _texCoords;
         normals = _normals;
-        parameters = _parameters;
         faceVerts = _faces;
         faceTexCoords = _faceTex;
         faceNormals = _faceNormals;
@@ -57,16 +54,16 @@ public class Mesh
         app = _app;
     }
 
-    public PVector getMeshAverage()
+    private Mesh(Mesh another)
     {
-        int vertexCount = vertices.size();
-        PVector average = new PVector();
-        for (PVector vertex : vertices             )
-        {
-            average.add(vertex.copy());
-        }
-        average.div(vertexCount);
-        return average;
+        vertices = another.vertices;
+        texCoords = another.texCoords;
+        normals = another.normals;
+        faceVerts = another.faceVerts;
+        faceTexCoords = another.faceTexCoords;
+        faceNormals = another.faceNormals;
+
+        app = another.app;
     }
 
     public static ArrayList<Mesh> readMeshes(String absolutePath, PApplet app)
@@ -223,14 +220,57 @@ public class Mesh
         return outputMeshList;
     }
 
-    //    public static void lineHeading(PVector origin, PVector vector, PApplet app)
-//    {
-//        app.pushMatrix();
-//        app.translate(origin.x, origin.y, origin.z);
-//        app.line(0, 0, 0, 50 * vector.x, 50 * vector.y, 50 * vector.z);
-//        app.popMatrix();
-//    }
-//
+    public static void writeObj(ArrayList<Mesh> meshes, String path)
+    {
+        long fileID = System.currentTimeMillis();
+
+        try
+        {
+            PrintWriter p = new PrintWriter(fileID + "out.obj");
+            p.println("# Mesh produced by custom script");
+            p.println("# Bryn Murrell 2018");
+
+
+            //Loop through group
+            if (meshes.size() != 1)
+            {
+
+            }
+            //Loop through vertices to print
+
+            //Loop through
+        }
+        catch (IOException e)
+        {
+            System.out.println("Unhandled IO Exception " + e);
+        }
+    }
+
+    public static Mesh tween2Meshes(Mesh A, Mesh B, float t)
+    {
+        assert (A.faceVerts.size() == B.faceVerts.size() && A.vertices.size() == B.vertices.size());
+        Mesh out = new Mesh(A);
+        for (int i = 0; i < A.vertices.size(); i++)
+        {
+            out.vertices.set(i, SynthMath.lerpVector(A.vertices.get(i), B.vertices.get(i), t));
+            out.normals.set(i, SynthMath.lerpVector(A.normals.get(i), B.normals.get(i), t));
+            out.texCoords.set(i, SynthMath.lerpVector(A.texCoords.get(i), B.normals.get(i), t));
+        }
+        return out;
+    }
+
+    public PVector getMeshAverage()
+    {
+        int vertexCount = vertices.size();
+        PVector average = new PVector();
+        for (PVector vertex : vertices)
+        {
+            average.add(vertex.copy());
+        }
+        average.div(vertexCount);
+        return average;
+    }
+
     public void drawWires(int strokeCol, int strokeWeight)
     {
         app.beginShape();
@@ -259,24 +299,6 @@ public class Mesh
             inVec.sub(scaleOrigin);
             inVec.mult(scaleFactor);
         }
-    }
-
-    public PVector meshNoise(PVector meshParam)
-    {
-        //get 4 neighbours based on meshparam
-        //get noise values based on neighbour positions
-        ArrayList<PVector> outVectors = new ArrayList<>();
-        for (int i = 0; i < faceVerts.size(); i++)
-        {
-            if (faceVerts.get(i) != -1)
-            {
-            }
-        }
-
-        //determine basis vectors for meshParam plane
-
-
-        return new PVector();
     }
 
     public PVector[] populate(int count, ArrayList<PVector> outNormals)
@@ -555,7 +577,7 @@ public class Mesh
 
                 PVector[] temp = lineCP2(vertices.get(index2), vertices.get(index1), point,
                         closestVertNormal, normals.get(normalIndex1),
-                        tex2,tex1);
+                        tex2, tex1);
                 if (closestInterpolatedPoint == null)
                 {
                     closestInterpolatedPoint = temp[0];
@@ -614,17 +636,17 @@ public class Mesh
         }
         if (SynthMain.drawneighbours)
         {
-//        app.strokeWeight(5);
-//        app.stroke(0, 255, 255);
-//        app.line(point.x, point.y, point.z, closestInterpolatedPoint.x, closestInterpolatedPoint.y, closestInterpolatedPoint.z);
-//        app.strokeWeight(1);
+            app.strokeWeight(5);
+            app.stroke(0, 255, 255);
+            app.line(point.x, point.y, point.z, closestInterpolatedPoint.x, closestInterpolatedPoint.y, closestInterpolatedPoint.z);
+            app.strokeWeight(1);
         }
         return new PVector[]{closestInterpolatedPoint, closestInterpolatedNormal, closestIntTex};
     }
 
-    public PVector lineIntersectsTriangle(PVector rayOrigin,
-                                          PVector rayVector,
-                                          PVector[] inTriangle)
+    private PVector lineIntersectsTriangle(PVector rayOrigin,
+                                           PVector rayVector,
+                                           PVector[] inTriangle)
     {
         float EPSILON = 0.0000001f;
         PVector vertex0 = inTriangle[0];
@@ -666,7 +688,7 @@ public class Mesh
         }
     }
 
-    public PVector[] lineCP2(PVector A, PVector B, PVector P, PVector normalA, PVector normalB, PVector texA, PVector texB)
+    private PVector[] lineCP2(PVector A, PVector B, PVector P, PVector normalA, PVector normalB, PVector texA, PVector texB)
     {
 //        auto AB = B - A;
         PVector AB = PVector.sub(B, A);
@@ -691,51 +713,10 @@ public class Mesh
         else
         {
             assert t < 1 && t > 0;
-            PVector temp = SynthMain.lerpVector(B, A, t);
-            PVector tempNormal = SynthMain.lerpVector(normalB, normalA, t);
-            PVector tempTex = SynthMain.lerpVector(texB, texA, t);
+            PVector temp = SynthMath.lerpVector(B, A, t);
+            PVector tempNormal = SynthMath.lerpVector(normalB, normalA, t);
+            PVector tempTex = SynthMath.lerpVector(texB, texA, t);
             return new PVector[]{temp, tempNormal, tempTex};
-        }
-    }
-
-
-    @Deprecated
-    PVector[] lineCP(PVector A, PVector B, PVector testPoint, PVector normalA, PVector normalB)
-    {
-        PVector v = PVector.sub(A, B);
-        PVector u = PVector.sub(A, testPoint);
-        float numerator = v.dot(u);
-        float denom = v.dot(v);
-        float t = -1 * (numerator / denom);
-        //float ft = (1-t) * A + t * B  - P
-        if (t > 0 && t < 1)
-        {
-            PVector ft = PVector.mult(A, 1 - t);
-            ft.add(PVector.mult(B, t));
-            ft.sub(testPoint);
-            return new PVector[]{ft, SynthMain.lerpVector(normalA, normalB, t)};
-        }
-        else
-        {
-            t = 0;
-            PVector f0 = PVector.mult(A, 1 - t);
-            f0.add(PVector.mult(B, t));
-            f0.sub(testPoint);
-            float g0 = f0.magSq();
-            t = 1;
-            PVector f1 = PVector.mult(A, 1 - t);
-            f1.add(PVector.mult(B, t));
-            f1.sub(testPoint);
-            float g1 = f1.magSq();
-            if (g0 < g1)
-            {
-                return new PVector[]{A, normalA};
-
-            }
-            else
-            {
-                return new PVector[]{B, normalB};
-            }
         }
     }
 
@@ -748,6 +729,7 @@ public class Mesh
 
         for (int startIndex = 0; startIndex < faceVerts.size(); startIndex++)
         {
+            //TODO(bryn): Add check that face is not already triangular
             if (startIndex == 0 || faceVerts.get(startIndex - 1) == -1)
             {
                 newFaceList.add(faceVerts.get(startIndex));
@@ -779,8 +761,7 @@ public class Mesh
             }
 
         }
-        return new Mesh(vertices, texCoords, normals, parameters, newFaceList, newFaceTexCoords, newFaceNormals, app);
-
+        return new Mesh(vertices, texCoords, normals, newFaceList, newFaceTexCoords, newFaceNormals, app);
     }
 
 
