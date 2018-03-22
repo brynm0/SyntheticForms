@@ -2,37 +2,140 @@ import peasy.PeasyCam;
 import processing.core.PApplet;
 import processing.core.PVector;
 
+import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.PrintWriter;
+import java.net.URI;
+import java.nio.charset.Charset;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Hashtable;
 
 public class SynthMain extends PApplet
 {
     public static boolean drawneighbours = false;
-    private boolean twistDirection = false;
+    public float scaleFactor = 0.0001f;
+    ArrayList<ArrayList<PVector>> curves = new ArrayList<>();
     private boolean paused = false;
-    private boolean drawMesh = true;
+    private boolean drawCurves = true;
     private boolean reset = false;
-
-    Boid twistBoid;
     private float x = 0;
     private float y = 0;
     private float z = 0;
-    private KDTree meshVertexTree;
+    private KDTree curveVertexTree;
     private KDTree boidTree;
     private PeasyCam camera;
-    private Mesh m;
     private PVector[] population;
-    private ArrayList<PVector> normalList;
     private ArrayList<Boid> boids;
-    private int boidCount = 1250;
+    private int boidCount = 1;
     private int frameNum = 0;
+    Hashtable<PVector, int[]> curveHashTable;
+
+    public static ArrayList<ArrayList<PVector>> readCrvFile(String absolutePath, PApplet app)
+    {
+        Charset charset = Charset.forName("US-ASCII");
+        String p = "file://" + absolutePath;
+        Path file = Paths.get(URI.create(p));
+
+        System.out.println(file);
+        ArrayList<ArrayList<PVector>> outList = new ArrayList<>();
+        ArrayList<ArrayList<PVector>> realOutList = new ArrayList<>();
+        int groupCurrentIndex = -1;
+        try (BufferedReader reader = Files.newBufferedReader(file, charset))
+        {
+
+            boolean zeroHasOccurred = false;
+            String line;
+            while ((line = reader.readLine()) != null)
+            {
+                if (line.contains("object_0"))
+                {
+                    if (!zeroHasOccurred)
+                    {
+                        zeroHasOccurred = true;
+                        groupCurrentIndex++;
+                        ArrayList<PVector> extremelyTempList = new ArrayList<>();
+                        outList.add(extremelyTempList);
+                    }
+                    else
+                    {
+                        break;
+                    }
+                }
+                else if (line.contains("object_"))
+                {
+                    groupCurrentIndex++;
+                    ArrayList<PVector> extremelyTempList = new ArrayList<>();
+                    outList.add(extremelyTempList);
+
+                }
+                else
+                {
+                    String[] s = line.split(" ");
+                    if (!s[0].equals("") && !s[1].equals(""))
+                    {
+                        PVector vec = new PVector(Float.parseFloat(s[0]), Float.parseFloat(s[1]));
+                        outList.get(groupCurrentIndex).add(vec);
+
+                    }
+                }
+            }
+        }
+        catch (IOException e)
+        {
+            System.err.format("IOException: %s%n", e);
+        }
+        finally
+        {
+            for (int i = 0; i < outList.size(); i++)
+            {
+
+                for (int j = 0; j < outList.size(); j++)
+                {
+                    if (i != j && outList.get(j).size() == 2)
+                    {
+                        assert !outList.get(i).contains(new PVector());
+                        boolean b = outList.get(i).get(outList.get(i).size() - 1).equals(outList.get(j).get(0));
+                        if (b)
+                        {
+                            outList.get(i).addAll(outList.get(j));
+                        }
+                    }
+                }
+                if (outList.get(i).size() != 2)
+                {
+                    realOutList.add(outList.get(i));
+                }
+            }
+        }
+        return realOutList;
+    }
 
     public static void main(String[] args)
     {
         PApplet.main("SynthMain", args);
     }
+
+    public static Hashtable<PVector, int[]> createCurveMap(ArrayList<ArrayList<PVector>> curveList)
+    {
+        Hashtable<PVector, int[]> curveMap = new Hashtable<>();
+        for (int i = 0; i < curveList.size(); i++)
+        {
+            for (int j = 0; j < curveList.get(i).size(); j++)
+            {
+                PVector key = curveList.get(i).get(j);
+                int[] value = new int[2];
+                value[0] = i;
+                value[1] = j;
+                curveMap.put(key, value);
+            }
+        }
+        return curveMap;
+    }
+
     public static ArrayList<Integer> indexOfAll(Object obj, ArrayList list)
     {
         ArrayList<Integer> indexList = new ArrayList<Integer>();
@@ -50,85 +153,123 @@ public class SynthMain extends PApplet
         size(1000, 800, P3D);
     }
 
-
     public void setup()
     {
         camera = new PeasyCam(this, 500);
 
         population = new PVector[boidCount];
+        population[0] = new PVector(1000,0,0);
+        boids = new ArrayList<>();
+        for (PVector point : population             )
+        {
+            boids.add(new Boid(1, point, 5, 0.01f, new PVector(0,0,1), 500, this));
+        }
         String OS = System.getProperty("os.name");
         System.out.println(OS);
-        ArrayList<Mesh> meshList;
         if (OS.equals("Windows 10"))
         {
-            meshList = Mesh.readMeshes("/Users/evilg/Google%20Drive/Architecture/2018/Semester%201/Synthetic%20Forms/Week%202b/Base%20Mesh/12.obj", this);
 
         }
         else
         {
-            meshList = Mesh.readMeshes("/home/bryn/BaseMeshes/4.obj", this);
+            curves = readCrvFile("/home/bryn/Downloads/1.crv", this);
+        }
+        scaleCurves(curves, scaleFactor);
+        removeBadSegments(curves);
+        PVector[] curveVertexList = explodeAllCurves(curves);
+        curveVertexTree = new KDTree(curveVertexList, 0, this);
+        curveHashTable = createCurveMap(curves);
 
-        }
+//        boids.get(0).escapeCurves(curves, curveVertexTree, curveHashTable, 50);
 
-        for (Mesh mesh : meshList)
-        {
-            if (mesh.vertices.size() != 0)
-            {
-                m = mesh;
-                break;
-            }
-        }
-        m.scale(3, m.getMeshAverage());
-        m = m.convQuadsToTris();
-        PVector[] points = new PVector[m.vertices.size()];
-        for (int i = 0; i < m.vertices.size(); i++)
-        {
-            points[i] = m.vertices.get(i);
-        }
-        meshVertexTree = new KDTree(points, 0, this);
-        normalList = new ArrayList<>();
-        population = m.populate(boidCount, normalList);
-        boids = new ArrayList<>();
-        for (int i = 0; i < population.length; i++)
-        {
-            Boid newboid = new Boid(random(5, 10), population[i], random(1, 3),
-                    random(1, 3), normalList.get(i), random(250, 500), this);
-            boids.add(newboid);
-        }
-        m.popNoise();
-        boidTree = new KDTree(population, 0, this);
-        setTwistBoid();
     }
 
-    public void setTwistBoid()
+    public PVector[] explodeAllCurves(ArrayList<ArrayList<PVector>> list)
     {
-        int randIndex = floor(random(m.vertices.size()));
-        PVector randVertex = m.vertices.get(randIndex);
-        int normalIndex = (m.faceVerts.indexOf(randIndex));
-        normalIndex = m.faceNormals.get(normalIndex);
-        float rand = random(0, 1);
-        PVector randNormal = m.normals.get(normalIndex).copy();
-        if (random(1) < 0.5)
+        int totalSize = 0;
+        for (ArrayList<PVector> p : list)
         {
-            twistDirection = !twistDirection;
+            totalSize += p.size();
         }
-        twistBoid = new Boid(1, randVertex.copy(), 5, 5, randNormal, 500, this);
+        PVector[] out = new PVector[totalSize];
+        int index = 0;
+        for (ArrayList<PVector> p : list)
+        {
+            for (PVector vec : p)
+            {
+                out[index] = vec;
+                index++;
+            }
+        }
+        return out;
+    }
+
+    public void removeBadSegments(ArrayList<ArrayList<PVector>> A)
+    {
+        for (ArrayList<PVector> b : A)
+        {
+            for (int i = 0; i < b.size(); i++)
+            {
+                if (i != b.size() - 1)
+                {
+                    if (PVector.dist(b.get(i), b.get(i + 1)) > scaleFactor * 7000)
+                    {
+                        b.remove(i + 1);
+                        b.remove(i);
+                        i--;
+                        i--;
+                    }
+                }
+            }
+        }
+
+    }
+
+    public void drawAllCurves(ArrayList<ArrayList<PVector>> A)
+    {
+        for (ArrayList<PVector> b : A)
+        {
+            for (int i = 0; i < b.size(); i++)
+            {
+                if (i != b.size() - 1)
+                {
+                    if (PVector.dist(b.get(i), b.get(i + 1)) > scaleFactor * 7000)
+                    {
+                        stroke(255, 0, 0);
+                    }
+                    line(b.get(i).x, b.get(i).y, b.get(i + 1).x, b.get(i + 1).y);
+                    stroke(0);
+
+                }
+            }
+        }
     }
 
     public void draw()
     {
         frameNum++;
         background(255);
-        if (drawMesh)
-        {
-            fill(255);
-            m.drawWires(0, 1);
-        }
         if (!paused)
         {
-            boidLoop();
+//            boidLoop();
+            boids.get(0).flowAlongCurve(curveVertexTree, curveHashTable, curves);
+            boids.get(0).integrate();
         }
+
+        //drawAllCurves(curves);
+        ellipse(0,0,5,5);
         boidDraw();
+    }
+
+    void scaleCurves(ArrayList<ArrayList<PVector>> A, float scaleFactor)
+    {
+        for (ArrayList<PVector> list : A)
+        {
+            for (PVector vec : list)
+            {
+                vec.mult(scaleFactor);
+            }
+        }
     }
 
 
@@ -138,10 +279,6 @@ public class SynthMain extends PApplet
         ArrayList<PVector> tempPop = new ArrayList<>(Arrays.asList(population));
         boidTree = new KDTree(population, 0, this);
 
-        //twistBoid.position = new PVector();
-        twistBoid.followMeshNoiseField(m, meshVertexTree, 1, true);
-        twistBoid.integrate();
-        //twistBoid.draw(500);
 
         for (int i = 0; i < boids.size(); i++)
         {
@@ -149,12 +286,6 @@ public class SynthMain extends PApplet
             {
                 boids.get(i).align(boidTree, boids, tempPop);
                 boids.get(i).cohesionRepulsion(boidTree);
-                boids.get(i).followMeshNoiseField(m, meshVertexTree, 0.1f, false);
-                boids.get(i).twist(new Plane(twistBoid.position.copy(), twistBoid.normal.copy()), twistDirection);
-            }
-            if (frameNum % ceil(random(10, 30)) == 0)
-            {
-                //boids.get(i).wanderOnMesh(10, m);
             }
             boids.get(i).integrate();
 
@@ -172,13 +303,6 @@ public class SynthMain extends PApplet
             ellipse(0, 0, 50, 50);
             popMatrix();
         }
-        pushMatrix();
-        translate(twistBoid.position.x, twistBoid.position.y, twistBoid.position.z);
-        noStroke();
-        fill(127, 255, 255, 200);
-        ellipse(0, 0, 100, 100);
-        noFill();
-        popMatrix();
     }
 
 
@@ -186,7 +310,7 @@ public class SynthMain extends PApplet
     {
         if (key == 'h')
         {
-            drawMesh = !drawMesh;
+            drawCurves = !drawCurves;
         }
         else if (key == 'r')
         {
@@ -224,10 +348,6 @@ public class SynthMain extends PApplet
         {
             saveBoids();
         }
-        else if (key == 'u')
-        {
-            setTwistBoid();
-        }
         else if (key == 'm')
         {
             drawneighbours = !drawneighbours;
@@ -239,8 +359,7 @@ public class SynthMain extends PApplet
     public void saveBoids()
     {
         long fileID = System.currentTimeMillis();
-        assert population.length == normalList.size();
-        assert normalList.size() == boids.size();
+        assert population.length == boids.size();
         ArrayList<Plane> plArray = new ArrayList<>();
         PrintWriter out, outX, outY, outZ;
         for (int i = 0; i < boids.size(); i++)
@@ -303,26 +422,5 @@ public class SynthMain extends PApplet
             System.out.println("Unhandled IO Exception " + e);
         }
     }
-
-    void meshCPDebug()
-    {
-        PVector position = new PVector(x, y, z);
-        PVector[] cp = m.closestPointOnMesh(position, meshVertexTree);
-
-        pushMatrix();
-        translate(position.x, position.y, position.z);
-        fill(255, 0, 0);
-        ellipse(0, 0, 25, 25);
-        popMatrix();
-
-        pushMatrix();
-        translate(cp[0].x, cp[0].y, cp[0].z);
-        fill(0, 255, 0);
-        ellipse(0, 0, 25, 25);
-        popMatrix();
-        line(position.x, position.y, position.z, cp[0].x, cp[0].y, cp[0].z);
-    }
-
-
 }
 

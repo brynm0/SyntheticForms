@@ -3,12 +3,13 @@ import processing.core.PConstants;
 import processing.core.PVector;
 
 import java.util.ArrayList;
+import java.util.Hashtable;
 
 public class Boid
 {
     public PVector velocity;
     public PVector position;
-    public PVector normal = new PVector();
+    public PVector normal = new PVector(0, 0, 1);
     float sightInner;
     float sightOuter;
     private float mass;
@@ -58,11 +59,69 @@ public class Boid
         acceleration.add(PVector.div(force, mass));
     }
 
+    public void flowAlongCurve(KDTree curvePointTree, Hashtable<PVector, int[]> curveIndexTable, ArrayList<ArrayList<PVector>> curves)
+    {
+        PVector cp = curvePointTree.nearestNeighbor(position);
+        int[] indices = curveIndexTable.get(cp);
+        PVector next = new PVector();
+        if (curves.get(indices[0]).size() != indices[1]+1)
+        {
+            next = curves.get(indices[0]).get(indices[1] + 1);
+            PVector desired = PVector.sub(next, cp);
+            desired.setMag(maxVel);
+            addSteer(desired);
+        }
+    }
+
+    public void escapeCurves(ArrayList<ArrayList<PVector>> curves, KDTree curvePointTree, Hashtable<PVector, int[]> curveIndexTable, float searchRadius)
+    {
+        ArrayList<PVector> results = curvePointTree.radiusNeighbours(position, searchRadius);
+        ArrayList<int[]> resultsIndices = new ArrayList<>();
+        int numCurves = 0;
+        for (PVector result : results)
+        {
+            int[] resultIndex = curveIndexTable.get(result);
+            if (resultsIndices.size() != 0)
+            {
+                for (int[] element : resultsIndices)
+                {
+                    if (element[0] == resultIndex[0])
+                    {
+                        numCurves++;
+                    }
+                }
+            }
+            resultsIndices.add(resultIndex);
+        }
+        if (numCurves == 2)
+        {
+            //TODO(bryn): Finish this
+            //Get 2 closest points that are on different curves
+            //If we determine we're between them, gtfo
+
+        }
+
+    }
+
+    private void addSteer(PVector desired)
+    {
+        PVector steer = PVector.sub(desired, velocity);
+        addForce(steer);
+
+    }
+
+    public PVector curveClosestPoint(ArrayList<PVector> curve)
+    {
+
+        KDTree curvePointTree = new KDTree((PVector[]) curve.toArray(), 0, app);
+        return curvePointTree.nearestNeighbor(position);
+    }
+
+
     public void attract(PVector target)
     {
         PVector desired = PVector.sub(target, position);
-        PVector steer = PVector.sub(desired, velocity);
-        addForce(steer);
+        addSteer(desired);
     }
 
     public void twist(Plane twistingPlane, boolean direction)
@@ -78,9 +137,7 @@ public class Boid
         twist.setMag(maxVel);
         float dist = PVector.dist(twistingPlane.origin, position);
         twist.mult(1000 / (dist));
-        PVector steer = PVector.sub(twist, velocity);
-
-        addForce(steer);
+        addSteer(twist);
     }
 
     public void followMeshNoiseField(Mesh m, KDTree meshVertexTree, float weight, boolean follow)
