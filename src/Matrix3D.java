@@ -29,13 +29,16 @@ public class Matrix3D
 
     public float determinant()
     {
-        float term1 = i.x * j.y * k.z;
-        float term2 = j.x * k.y * i.z;
-        float term3 = k.x * i.y * j.z;
-        float term4 = k.x * j.y * i.z;
-        float term5 = j.x * i.y * k.z;
-        float term6 = i.x * k.y * j.z;
-        return (1.0f / (term1 + term2 + term3 - term4 - term5 - term6));
+        Matrix2D temp = new Matrix2D(j.y, k.y, j.z, k.z);
+        float term1 = i.x * temp.determinant();
+
+        temp = new Matrix2D(i.x, k.x, i.z, k.z);
+        float term2 = j.x * temp.determinant();
+
+        temp = new Matrix2D(i.x, j.x, i.y, j.y);
+        float term3 = k.x * temp.determinant();
+
+        return (term1 - term2 + term3);
 
     }
 
@@ -48,56 +51,79 @@ public class Matrix3D
         return outMat;
     }
 
-    public static PVector changeOfBasis3D(Matrix3D newBasis, PVector vecToTransform)
-    {
-        Matrix3D invertedBasis = newBasis.invert();
-        PVector outputVec = new PVector();
-        outputVec.x = vecToTransform.x * invertedBasis.i.x + vecToTransform.y * invertedBasis.j.x + vecToTransform.z * invertedBasis.k.x;
-        outputVec.y = vecToTransform.x * invertedBasis.i.y + vecToTransform.y * invertedBasis.j.y + vecToTransform.z * invertedBasis.k.y;
-        outputVec.z = vecToTransform.x * invertedBasis.i.z + vecToTransform.y * invertedBasis.j.z + vecToTransform.z * invertedBasis.k.y;
-        return outputVec;
-    }
-
     public Matrix3D invert()
     {
         float det = determinant();
         Matrix3D adj = adjugate();
-        adj = scale(det, adj);
+        adj = scale(1 / det, adj);
         return adj;
     }
 
     public Matrix3D adjugate()
     {
-        return(cofactor().transpose());
+        return (matrixOfMinors().cofactor().transpose());
     }
-
     public Matrix3D cofactor()
     {
+        Matrix3D out = new Matrix3D();
+        out.i.x = i.x;
+        out.i.y = i.y * -1;
+        out.i.z = i.z;
+        out.j.x = j.x * -1;
+        out.j.y = j.y;
+        out.j.z = j.z * -1;
+        out.k.x = k.x;
+        out.k.y = k.y * -1;
+        out.k.z = k.z;
+        return out;
+    }
+
+    public Matrix3D matrixOfMinors()
+    {
         Matrix2D[] temp = new Matrix2D[9];
-        temp[0] = new Matrix2D(j.y, k.y, j.z, k.z);
-        temp[1] = new Matrix2D(i.y, k.y, i.z, k.z);
-        temp[2] = new Matrix2D(i.y, j.y, i.z, j.z);
-        temp[3] = new Matrix2D(j.x, k.x, j.z, k.z);
-        temp[4] = new Matrix2D(i.x, k.x, i.z, j.z);
-        temp[5] = new Matrix2D(i.x, j.x, i.z, j.z);
-        temp[6] = new Matrix2D(j.x, k.x, j.y, k.y);
-        temp[7] = new Matrix2D(i.x, k.x, i.y, k.y);
-        temp[8] = new Matrix2D(i.x, j.x, i.z, j.y);
+        float a = i.x;
+        float b = j.x;
+        float c = k.x;
+        float d = i.y;
+        float e = j.y;
+        float f = k.y;
+        float g = i.z;
+        float h = j.z;
+        float ii = k.z;
+
+        temp[0] = new Matrix2D(e, f, h, ii);
+        temp[1] = new Matrix2D(b, c, h, ii);
+        temp[2] = new Matrix2D(b, c, e, f);
+        temp[3] = new Matrix2D(d, f, g, ii);
+        temp[4] = new Matrix2D(a, c, g, ii);
+        temp[5] = new Matrix2D(a, c, d, f);
+        temp[6] = new Matrix2D(d, e, g, h);
+        temp[7] = new Matrix2D(a, b, g, h);
+        temp[8] = new Matrix2D(a, b, d, e);
 
         Matrix3D out = new Matrix3D();
         out.i.x = temp[0].determinant();
-        out.j.x = temp[1].determinant();
-        out.k.x = temp[2].determinant();
+        out.i.y = temp[1].determinant();
+        out.i.z = temp[2].determinant();
 
-        out.i.y = temp[3].determinant();
+        out.j.x = temp[3].determinant();
         out.j.y = temp[4].determinant();
-        out.k.y = temp[5].determinant();
+        out.j.z = temp[5].determinant();
 
-        out.i.z = temp[6].determinant();
-        out.j.z = temp[7].determinant();
+        out.k.x = temp[6].determinant();
+        out.k.y = temp[7].determinant();
         out.k.z = temp[8].determinant();
 
         return out;
+    }
+
+    public static PVector mult(Matrix3D m, PVector v)
+    {
+        float x = m.i.x * v.x + m.j.x * v.x + m.k.x * v.x;
+        float y = m.i.y * v.y + m.j.y * v.y + m.k.y * v.y;
+        float z = m.i.z * v.z + m.j.z * v.z + m.k.z * v.z;
+
+        return new PVector(x,y,z);
     }
 
     public Matrix3D transpose()

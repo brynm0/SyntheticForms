@@ -25,7 +25,7 @@ public class Matrix2D
 
     public float determinant()
     {
-        return (1.0f / (i.x * j.y - i.x * j.y));
+        return ((i.x * j.y - i.y * j.x));
 
     }
 

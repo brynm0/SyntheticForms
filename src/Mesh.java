@@ -15,14 +15,14 @@ import java.util.ArrayList;
 public class Mesh
 {
 
-    public ArrayList<PVector> vertices;
-    public ArrayList<PVector> normals;
-    public ArrayList<Integer> faceVerts;
-    public ArrayList<Integer> faceNormals;
-    private ArrayList<PVector> texCoords;
-    private ArrayList<Integer> faceTexCoords;
-    private PApplet app;
-    private int numFaces = 0;
+    ArrayList<PVector> vertices;
+    ArrayList<PVector> normals;
+    ArrayList<Integer> faceVerts;
+    ArrayList<Integer> faceNormals;
+    ArrayList<PVector> texCoords;
+    ArrayList<Integer> faceTexCoords;
+    PApplet app;
+    int numFaces = 0;
 
     private Mesh(PApplet _ap)
     {
@@ -50,19 +50,17 @@ public class Mesh
         faceVerts = _faces;
         faceTexCoords = _faceTex;
         faceNormals = _faceNormals;
-
         app = _app;
     }
 
-    private Mesh(Mesh another)
+    public Mesh(Mesh another)
     {
-        vertices = another.vertices;
-        texCoords = another.texCoords;
-        normals = another.normals;
-        faceVerts = another.faceVerts;
-        faceTexCoords = another.faceTexCoords;
-        faceNormals = another.faceNormals;
-
+        vertices = new ArrayList<>(another.vertices);
+        texCoords = new ArrayList<>(another.texCoords);
+        normals = new ArrayList<>(another.normals);
+        faceVerts = new ArrayList<>(another.faceVerts);
+        faceTexCoords = new ArrayList<>(another.faceTexCoords);
+        faceNormals = new ArrayList<>(another.faceNormals);
         app = another.app;
     }
 
@@ -203,8 +201,7 @@ public class Mesh
                     }
                 }
             }
-        }
-        catch (IOException e)
+        } catch (IOException e)
         {
             System.err.format("IOException: %s%n", e);
         }
@@ -220,10 +217,10 @@ public class Mesh
         return outputMeshList;
     }
 
-    public static void writeObj(ArrayList<Mesh> meshes, String path)
+    public static void writeObj(ArrayList<Mesh> meshes)
     {
         long fileID = System.currentTimeMillis();
-
+        System.out.println("Working on saving obj");
         try
         {
             PrintWriter p = new PrintWriter(fileID + "out.obj");
@@ -232,18 +229,86 @@ public class Mesh
 
 
             //Loop through group
-            if (meshes.size() != 1)
+            int runningTotalSize = 0;
+            for (int meshIndex = 0; meshIndex < meshes.size(); meshIndex++)
             {
+                if (meshes.get(meshIndex).faceVerts.size() != 0)
+                {
+                    Mesh curr = meshes.get(meshIndex);
 
+                    p.println("g object_" + meshIndex);
+                    for (PVector v : curr.vertices)
+                    {
+                        p.println("v " + v.x + " " + v.y + " " + v.z);
+                    }
+                    for (PVector vt : curr.texCoords)
+                    {
+                        p.println("vt " + vt.x + " " + vt.y + " " + vt.z);
+                    }
+                    for (PVector vn : curr.normals)
+                    {
+                        p.println("vn " + vn.x + " " + vn.y + " " + vn.z);
+                    }
+                    curr.countFaces();
+                    //TODO(bryn): Fill out printwriting for quadmeshes & trimeshes
+                    //could be a pure quad mesh or a mix of quads and tris
+                    //will probably be the latter, so need to account for that
+                    String currface = "";
+
+                    for (int i = 0; i < curr.faceVerts.size(); i++)
+                    {
+
+                        if (i == 0)
+                        {
+                            currface = "";
+                            //start of face, insert f
+                            currface += "f ";
+                        }
+                        else if (curr.faceVerts.get(i) == -1)
+                        {
+                            p.println(currface);
+                            currface = "";
+                            //start of face, insert f
+                            currface += "f ";
+                            continue;
+                        }
+                        currface += (curr.faceVerts.get(i) + 1 + runningTotalSize);
+                        currface += "/";
+                        if (curr.faceTexCoords.get(i) != -1)
+                        {
+                            currface += (1 + curr.faceTexCoords.get(i) + runningTotalSize);
+                        }
+                        currface += "/";
+                        currface += (1 + curr.faceNormals.get(i) + runningTotalSize);
+                        currface += " ";
+                    }
+                    runningTotalSize += meshes.get(meshIndex).vertices.size();
+                }
             }
-            //Loop through vertices to print
-
-            //Loop through
-        }
-        catch (IOException e)
+            p.close();
+        } catch (IOException e)
         {
             System.out.println("Unhandled IO Exception " + e);
         }
+        finally
+        {
+            System.out.println("done");
+
+        }
+
+    }
+
+    void countFaces()
+    {
+        int total = 0;
+        for (int i = 0; i < faceVerts.size(); i++)
+        {
+            if (faceVerts.get(i) == -1)
+            {
+                total++;
+            }
+        }
+        numFaces = total;
     }
 
     public static Mesh tween2Meshes(Mesh A, Mesh B, float t)
@@ -265,11 +330,26 @@ public class Mesh
         PVector average = new PVector();
         for (PVector vertex : vertices)
         {
-            average.add(vertex.copy());
+            PVector temp = vertex.copy();
+            temp.mult(1.0f / vertexCount);
+            average.add(temp);
+            assert !Float.isNaN(average.x);
+            assert !Float.isNaN(average.y);
+            assert !Float.isNaN(average.z);
         }
-        average.div(vertexCount);
         return average;
     }
+
+    public void moveMeshCentreToWorld()
+    {
+        PVector origin = new PVector();
+        PVector centre = this.getMeshAverage();
+        for (PVector vertex : vertices)
+        {
+            vertex.add(PVector.sub(origin, centre));
+        }
+    }
+
 
     public void drawWires(int strokeCol, int strokeWeight)
     {
@@ -294,10 +374,11 @@ public class Mesh
 
     public void scale(float scaleFactor, PVector scaleOrigin)
     {
-        for (PVector inVec : vertices)
+        for (int i = 0; i < vertices.size(); i++)
         {
-            inVec.sub(scaleOrigin);
-            inVec.mult(scaleFactor);
+            PVector scl = PVector.sub(vertices.get(i), scaleOrigin);
+            scl.mult(scaleFactor);
+            vertices.set(i, PVector.add(scl, scaleOrigin));
         }
     }
 
@@ -483,7 +564,6 @@ public class Mesh
 
 
             }
-
             else if (indices.get(i) % 4 == 2)
             {
                 //End of face
@@ -595,7 +675,6 @@ public class Mesh
                 }
 
             }
-
             else if (indices.get(i) % 4 == 2)
             {
                 //End of face
@@ -634,7 +713,7 @@ public class Mesh
 
 
         }
-        if (SynthMain.drawneighbours)
+        if (SynthMain.drawNeighbours)
         {
             app.strokeWeight(5);
             app.stroke(0, 255, 255);
@@ -688,6 +767,55 @@ public class Mesh
         }
     }
 
+    private PVector raycastTriangle(PVector rayOrigin,
+                                    PVector rayVector,
+                                    PVector[] inTriangle)
+    {
+        float EPSILON = 0.0000001f;
+        PVector vertex0 = inTriangle[0];
+        PVector vertex1 = inTriangle[1];
+        PVector vertex2 = inTriangle[2];
+        PVector edge1, edge2, h, s, q;
+        float a, f, u, v;
+        edge1 = PVector.sub(vertex1, vertex0);
+        edge2 = PVector.sub(vertex2, vertex0);
+        h = rayVector.cross(edge2);
+        a = edge1.dot(h);
+        if (a > -EPSILON && a < EPSILON)
+        {
+            return null;
+        }
+        f = 1.0f / a;
+        s = PVector.sub(rayOrigin, vertex0);
+        u = f * (s.dot(h));
+        if (u < 0.0f || u > 1.0f)
+        {
+            return null;
+        }
+        q = s.cross(edge1);
+        v = f * rayVector.dot(q);
+        if (v < 0.0f || u + v > 1.0f)
+        {
+            return null;
+        }
+        // At this stage we can compute t to find out where the intersection point is on the line.
+        float t = f * edge2.dot(q);
+        if (t > EPSILON) // ray intersection
+        {
+            return PVector.add(rayOrigin, PVector.mult(rayVector, t));
+        }
+        else
+        {
+            // This means that there is a line intersection but not a ray intersection.
+            return null;
+        }
+    }
+//
+//    public PVector raycastMesh(PVector rayOrigin,
+//                               PVector rayVector)
+//    {
+//
+//    }
     private PVector[] lineCP2(PVector A, PVector B, PVector P, PVector normalA, PVector normalB, PVector texA, PVector texB)
     {
 //        auto AB = B - A;
@@ -698,8 +826,14 @@ public class Mesh
         float lengthSqAB = AB.magSq();
 //        float t = (AP.x * AB.x + AP.y * AB.y) / lengthSqrAB;
         float t = (AP.dot(AB)) / lengthSqAB;
-        if (t > 1) t = 1;
-        if (t < 0) t = 0;
+        if (t > 1)
+        {
+            t = 1;
+        }
+        if (t < 0)
+        {
+            t = 0;
+        }
         if (t == 0)
         {
             return new PVector[]{B, normalB, texB};
@@ -732,32 +866,50 @@ public class Mesh
             //TODO(bryn): Add check that face is not already triangular
             if (startIndex == 0 || faceVerts.get(startIndex - 1) == -1)
             {
-                newFaceList.add(faceVerts.get(startIndex));
-                newFaceList.add(faceVerts.get(startIndex + 1));
-                newFaceList.add(faceVerts.get(startIndex + 2));
-                newFaceList.add(-1);
-                newFaceList.add(faceVerts.get(startIndex + 2));
-                newFaceList.add(faceVerts.get(startIndex + 3));
-                newFaceList.add(faceVerts.get(startIndex));
-                newFaceList.add(-1);
+                if (faceVerts.get(startIndex + 3) != -1)
+                {
+                    newFaceList.add(faceVerts.get(startIndex));
+                    newFaceList.add(faceVerts.get(startIndex + 1));
+                    newFaceList.add(faceVerts.get(startIndex + 2));
+                    newFaceList.add(-1);
+                    newFaceList.add(faceVerts.get(startIndex + 2));
+                    newFaceList.add(faceVerts.get(startIndex + 3));
+                    newFaceList.add(faceVerts.get(startIndex));
+                    newFaceList.add(-1);
 
-                newFaceTexCoords.add(faceTexCoords.get(startIndex));
-                newFaceTexCoords.add(faceTexCoords.get(startIndex + 1));
-                newFaceTexCoords.add(faceTexCoords.get(startIndex + 2));
-                newFaceTexCoords.add(-1);
-                newFaceTexCoords.add(faceTexCoords.get(startIndex + 2));
-                newFaceTexCoords.add(faceTexCoords.get(startIndex + 3));
-                newFaceTexCoords.add(faceTexCoords.get(startIndex));
-                newFaceTexCoords.add(-1);
+                    newFaceTexCoords.add(faceTexCoords.get(startIndex));
+                    newFaceTexCoords.add(faceTexCoords.get(startIndex + 1));
+                    newFaceTexCoords.add(faceTexCoords.get(startIndex + 2));
+                    newFaceTexCoords.add(-1);
+                    newFaceTexCoords.add(faceTexCoords.get(startIndex + 2));
+                    newFaceTexCoords.add(faceTexCoords.get(startIndex + 3));
+                    newFaceTexCoords.add(faceTexCoords.get(startIndex));
+                    newFaceTexCoords.add(-1);
 
-                newFaceNormals.add(faceNormals.get(startIndex));
-                newFaceNormals.add(faceNormals.get(startIndex + 1));
-                newFaceNormals.add(faceNormals.get(startIndex + 2));
-                newFaceNormals.add(-1);
-                newFaceNormals.add(faceNormals.get(startIndex + 2));
-                newFaceNormals.add(faceNormals.get(startIndex + 3));
-                newFaceNormals.add(faceNormals.get(startIndex));
-                newFaceNormals.add(-1);
+                    newFaceNormals.add(faceNormals.get(startIndex));
+                    newFaceNormals.add(faceNormals.get(startIndex + 1));
+                    newFaceNormals.add(faceNormals.get(startIndex + 2));
+                    newFaceNormals.add(-1);
+                    newFaceNormals.add(faceNormals.get(startIndex + 2));
+                    newFaceNormals.add(faceNormals.get(startIndex + 3));
+                    newFaceNormals.add(faceNormals.get(startIndex));
+                    newFaceNormals.add(-1);
+                }
+                else
+                {
+                    newFaceList.add(faceVerts.get(startIndex));
+                    newFaceList.add(faceVerts.get(startIndex + 1));
+                    newFaceList.add(faceVerts.get(startIndex + 2));
+                    newFaceList.add(-1);
+                    newFaceTexCoords.add(faceTexCoords.get(startIndex));
+                    newFaceTexCoords.add(faceTexCoords.get(startIndex + 1));
+                    newFaceTexCoords.add(faceTexCoords.get(startIndex + 2));
+                    newFaceTexCoords.add(-1);
+                    newFaceNormals.add(faceNormals.get(startIndex));
+                    newFaceNormals.add(faceNormals.get(startIndex + 1));
+                    newFaceNormals.add(faceNormals.get(startIndex + 2));
+                    newFaceNormals.add(-1);
+                }
             }
 
         }

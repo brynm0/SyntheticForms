@@ -1,5 +1,7 @@
 import processing.core.PVector;
 
+import java.awt.*;
+
 public class Plane
 {
     PVector origin;
@@ -19,9 +21,7 @@ public class Plane
         x = _x.copy();
         y = _y.copy();
         z = _z.copy();
-        x.normalize();
-        y.normalize();
-        z.normalize();
+
     }
 
     public Plane(PVector _origin, PVector _z)
@@ -36,9 +36,7 @@ public class Plane
         {
             x = worldZ.cross(z).mult(-1);
             y = x.cross(z).mult(-1);
-            x.normalize();
-            y.normalize();
-            z.normalize();
+
 
         }
         else
@@ -48,6 +46,28 @@ public class Plane
         }
         origin = _origin;
     }
+
+    public PVector changeBasis(PVector v)
+    {
+        Matrix3D planeMatrix = new Matrix3D(this);
+        planeMatrix = planeMatrix.invert();
+        PVector result = Matrix3D.mult(planeMatrix, v);
+        return result;
+    }
+
+    public PVector orient(PVector v)
+    {
+        PVector out = v.copy();
+        out.x = this.x.x * v.x + this.x.y * v.x + this.x.z * v.x;
+        out.y = this.y.x * v.y + this.y.y * v.y + this.y.z * v.y;
+        out.z = this.z.x * v.z + this.z.y * v.z + this.z.z * v.z;
+        out.add(this.origin);
+        assert out.x != Float.NaN;
+
+
+        return out;
+    }
+
 
     public Plane(PVector _origin, PVector _z, PVector _x)
     {
@@ -61,9 +81,7 @@ public class Plane
         if (z != worldZ)
         {
             y = x.cross(z).mult(-1);
-            x.normalize();
-            y.normalize();
-            z.normalize();
+
 
         }
         else

@@ -1,14 +1,16 @@
 import processing.core.PApplet;
 import processing.core.PConstants;
 import processing.core.PVector;
+import sun.awt.geom.Curve;
 
 import java.util.ArrayList;
+import java.util.Hashtable;
 
 public class Boid
 {
     public PVector velocity;
     public PVector position;
-    public PVector normal = new PVector();
+    public PVector normal = new PVector(0, 0, 1);
     float sightInner;
     float sightOuter;
     private float mass;
@@ -54,13 +56,86 @@ public class Boid
 
     public void addForce(PVector force)
     {
-        if (force.mag() > maxForce && maxForce != -1) force.setMag(maxForce);
+        if (force.mag() > maxForce && maxForce != -1)
+        {
+            force.setMag(maxForce);
+        }
         acceleration.add(PVector.div(force, mass));
     }
 
-    public void attract(PVector target)
+    public void flowAlongCurve(CurveCollection c, float weight)
     {
-        PVector desired = PVector.sub(target, position);
+        PVector cp = c.curvePointTree.nearestNeighbor(position);
+        int[] indices = c.curveIndexTable.get(cp);
+        PVector next = new PVector();
+        if (c.curves.get(indices[0]).size() != indices[1] + 1)
+        {
+            next = c.curves.get(indices[0]).get(indices[1] + 1);
+            PVector desired = PVector.sub(next, cp);
+            desired.setMag(maxVel);
+            addSteer(PVector.mult(desired, weight));
+        }
+    }
+
+    public void attractRepelCurves(CurveCollection c, float weight)
+    {
+        float curveSightOuter = sightOuter * weight;
+        float curveSightInner = sightInner * weight;
+        ArrayList<PVector> closestPoints = c.curvePointTree.radiusNeighbours(position, curveSightOuter);
+        int attractioncount = 0;
+        PVector desiredRepulsion = new PVector();
+        PVector desiredAttraction = new PVector();
+        for (PVector element : closestPoints)
+        {
+            if (element.dist(position) < curveSightInner)
+            {
+                if (SynthMain.drawNeighbours)
+                {
+                    app.stroke(255, 0, 0);
+                    app.line(position.x, position.y, position.z, element.x, element.y, element.z);
+                }
+                //Contribute to repulsion total
+                PVector desired = PVector.sub(position, element);
+                desired.mult(1 / position.dist(element));
+                desiredRepulsion.add(desired);
+            }
+            else
+            {
+                if (SynthMain.drawNeighbours)
+                {
+
+                    app.stroke(0, 0, 255);
+                    app.line(position.x, position.y, position.z, element.x, element.y, element.z);
+                }
+                //Contribute to attraction total;
+                desiredAttraction.add(element);
+                attractioncount++;
+            }
+        }
+        if (attractioncount != 0)
+        {
+            desiredAttraction.div(attractioncount);
+
+        }
+        if (!desiredRepulsion.equals(new PVector()))
+        {
+            PVector steerAway = PVector.sub(desiredRepulsion, velocity);
+
+            addForce(steerAway);
+        }
+        if (!desiredAttraction.equals(new PVector()))
+        {
+            desiredAttraction = PVector.sub(desiredAttraction, position);
+
+            PVector steerToward = PVector.sub(desiredAttraction, velocity);
+            addForce(steerToward);
+
+        }
+    }
+
+
+    private void addSteer(PVector desired)
+    {
         PVector steer = PVector.sub(desired, velocity);
         addForce(steer);
     }
@@ -78,9 +153,7 @@ public class Boid
         twist.setMag(maxVel);
         float dist = PVector.dist(twistingPlane.origin, position);
         twist.mult(1000 / (dist));
-        PVector steer = PVector.sub(twist, velocity);
-
-        addForce(steer);
+        addSteer(twist);
     }
 
     public void followMeshNoiseField(Mesh m, KDTree meshVertexTree, float weight, boolean follow)
@@ -104,34 +177,6 @@ public class Boid
             addForce(steer);
         }
 
-
-    }
-
-    public void cohesion(KDTree pointsTree, float radius)
-    {
-        ArrayList<PVector> neighbours = pointsTree.radiusNeighbours(position, radius);
-        if (neighbours.size() != 0)
-        {
-//            for (PVector neighbour : neighbours)
-//            {
-//                app.line(position.x, position.y, position.z, neighbour.x, neighbour.y, neighbour.z);
-//            }
-
-
-            //get sum of neighbours pos
-            PVector steer;
-            PVector desired = new PVector();
-            for (PVector element : neighbours)
-            {
-                desired.add(PVector.mult(PVector.sub(element, position), element.dist(position)));
-            }
-            desired.div(neighbours.size());
-
-            steer = PVector.sub(desired, velocity);
-
-            addForce(steer);
-
-        }
 
     }
 
@@ -180,8 +225,6 @@ public class Boid
         PVector desired = (PVector.add(randVector, velocity));
         PVector steer = PVector.sub(desired, velocity);
         addForce(steer);
-
-
     }
 
     public void cohesionRepulsion(KDTree pointsTree)
@@ -194,7 +237,7 @@ public class Boid
         {
             if (element.dist(position) < this.sightInner)
             {
-                if (SynthMain.drawneighbours)
+                if (SynthMain.drawNeighbours)
                 {
                     app.stroke(255, 0, 0);
                     app.line(position.x, position.y, position.z, element.x, element.y, element.z);
@@ -206,7 +249,7 @@ public class Boid
             }
             else
             {
-                if (SynthMain.drawneighbours)
+                if (SynthMain.drawNeighbours)
                 {
 
                     app.stroke(0, 0, 255);
