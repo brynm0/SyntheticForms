@@ -12,128 +12,29 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Hashtable;
 
 public class SynthMain extends PApplet
 {
     public static boolean drawneighbours = false;
     public float scaleFactor = 0.0001f;
-    ArrayList<ArrayList<PVector>> curves = new ArrayList<>();
+    public int boidCount;
+    CurveCollection roads;
+    private boolean followNoise = false;
     private boolean paused = false;
-    private boolean drawCurves = true;
+    private boolean drawCurves = false;
     private boolean reset = false;
     private float x = 0;
     private float y = 0;
     private float z = 0;
-    private KDTree curveVertexTree;
     private KDTree boidTree;
     private PeasyCam camera;
     private PVector[] population;
     private ArrayList<Boid> boids;
-    private int boidCount = 1;
     private int frameNum = 0;
-    Hashtable<PVector, int[]> curveHashTable;
-
-    public static ArrayList<ArrayList<PVector>> readCrvFile(String absolutePath, PApplet app)
-    {
-        Charset charset = Charset.forName("US-ASCII");
-        String p = "file://" + absolutePath;
-        Path file = Paths.get(URI.create(p));
-
-        System.out.println(file);
-        ArrayList<ArrayList<PVector>> outList = new ArrayList<>();
-        ArrayList<ArrayList<PVector>> realOutList = new ArrayList<>();
-        int groupCurrentIndex = -1;
-        try (BufferedReader reader = Files.newBufferedReader(file, charset))
-        {
-
-            boolean zeroHasOccurred = false;
-            String line;
-            while ((line = reader.readLine()) != null)
-            {
-                if (line.contains("object_0"))
-                {
-                    if (!zeroHasOccurred)
-                    {
-                        zeroHasOccurred = true;
-                        groupCurrentIndex++;
-                        ArrayList<PVector> extremelyTempList = new ArrayList<>();
-                        outList.add(extremelyTempList);
-                    }
-                    else
-                    {
-                        break;
-                    }
-                }
-                else if (line.contains("object_"))
-                {
-                    groupCurrentIndex++;
-                    ArrayList<PVector> extremelyTempList = new ArrayList<>();
-                    outList.add(extremelyTempList);
-
-                }
-                else
-                {
-                    String[] s = line.split(" ");
-                    if (!s[0].equals("") && !s[1].equals(""))
-                    {
-                        PVector vec = new PVector(Float.parseFloat(s[0]), Float.parseFloat(s[1]));
-                        outList.get(groupCurrentIndex).add(vec);
-
-                    }
-                }
-            }
-        }
-        catch (IOException e)
-        {
-            System.err.format("IOException: %s%n", e);
-        }
-        finally
-        {
-            for (int i = 0; i < outList.size(); i++)
-            {
-
-                for (int j = 0; j < outList.size(); j++)
-                {
-                    if (i != j && outList.get(j).size() == 2)
-                    {
-                        assert !outList.get(i).contains(new PVector());
-                        boolean b = outList.get(i).get(outList.get(i).size() - 1).equals(outList.get(j).get(0));
-                        if (b)
-                        {
-                            outList.get(i).addAll(outList.get(j));
-                        }
-                    }
-                }
-                if (outList.get(i).size() != 2)
-                {
-                    realOutList.add(outList.get(i));
-                }
-            }
-        }
-        return realOutList;
-    }
 
     public static void main(String[] args)
     {
         PApplet.main("SynthMain", args);
-    }
-
-    public static Hashtable<PVector, int[]> createCurveMap(ArrayList<ArrayList<PVector>> curveList)
-    {
-        Hashtable<PVector, int[]> curveMap = new Hashtable<>();
-        for (int i = 0; i < curveList.size(); i++)
-        {
-            for (int j = 0; j < curveList.get(i).size(); j++)
-            {
-                PVector key = curveList.get(i).get(j);
-                int[] value = new int[2];
-                value[0] = i;
-                value[1] = j;
-                curveMap.put(key, value);
-            }
-        }
-        return curveMap;
     }
 
     public static ArrayList<Integer> indexOfAll(Object obj, ArrayList list)
@@ -148,6 +49,43 @@ public class SynthMain extends PApplet
 
     }
 
+    public ArrayList<PVector> readPopulationFromFile(String absolutePath, PApplet app)
+    {
+        Charset charset = Charset.forName("US-ASCII");
+        String p = "file://" + absolutePath;
+        Path file = Paths.get(URI.create(p));
+
+        System.out.println(file);
+        ArrayList<PVector> outList = new ArrayList<>();
+        int currentNum = 0;
+        try (BufferedReader reader = Files.newBufferedReader(file, charset))
+        {
+            String line = "";
+            while ((line = reader.readLine()) != null)
+            {
+                if (line.length() != 0)
+                {
+                    String[] substrings = line.split(" ");
+                    float x = Float.parseFloat(substrings[0]);
+                    float y = Float.parseFloat(substrings[1]);
+//                    if (currentNum <= boidCount)
+//                    {
+//                    }
+//                    else
+//                    {
+//                        break;
+//                    }
+                    outList.add(new PVector(x, y, 0));
+                }
+            }
+        }
+        catch (IOException e)
+        {
+            System.out.println("IOException: " + e);
+        }
+        return outList;
+    }
+
     public void settings()
     {
         size(1000, 800, P3D);
@@ -157,13 +95,24 @@ public class SynthMain extends PApplet
     {
         camera = new PeasyCam(this, 500);
 
-        population = new PVector[boidCount];
-        population[0] = new PVector(1000,0,0);
-        boids = new ArrayList<>();
-        for (PVector point : population             )
+        population = readPopulationFromFile("/home/bryn/Downloads/houselocationsinitial.txt", this).toArray(new PVector[0]);
+
+        for (int i = 0; i < population.length; i++)
         {
-            boids.add(new Boid(1, point, 5, 0.01f, new PVector(0,0,1), 500, this));
+            population[i].mult(scaleFactor);
         }
+        boids = new ArrayList<>();
+//        for (PVector point : population)
+//        {
+//            boids.add(new Boid(1, point, 5, 0.01f, new PVector(0, 0, 1), 500, this));
+//        }
+        for (int i = 0; i < population.length; i++)
+        {
+            boids.add(new Boid(1, population[i], 0.75f, 0.1f, new PVector(0, 0, 1),
+                    75000 * scaleFactor, 22500 * scaleFactor, this));
+        }
+        boidCount = population.length;
+
         String OS = System.getProperty("os.name");
         System.out.println(OS);
         if (OS.equals("Windows 10"))
@@ -172,78 +121,14 @@ public class SynthMain extends PApplet
         }
         else
         {
-            curves = readCrvFile("/home/bryn/Downloads/1.crv", this);
+            roads = new CurveCollection("/home/bryn/Downloads/1.crv", scaleFactor, this);
+
         }
-        scaleCurves(curves, scaleFactor);
-        removeBadSegments(curves);
-        PVector[] curveVertexList = explodeAllCurves(curves);
-        curveVertexTree = new KDTree(curveVertexList, 0, this);
-        curveHashTable = createCurveMap(curves);
 
 //        boids.get(0).escapeCurves(curves, curveVertexTree, curveHashTable, 50);
 
     }
 
-    public PVector[] explodeAllCurves(ArrayList<ArrayList<PVector>> list)
-    {
-        int totalSize = 0;
-        for (ArrayList<PVector> p : list)
-        {
-            totalSize += p.size();
-        }
-        PVector[] out = new PVector[totalSize];
-        int index = 0;
-        for (ArrayList<PVector> p : list)
-        {
-            for (PVector vec : p)
-            {
-                out[index] = vec;
-                index++;
-            }
-        }
-        return out;
-    }
-
-    public void removeBadSegments(ArrayList<ArrayList<PVector>> A)
-    {
-        for (ArrayList<PVector> b : A)
-        {
-            for (int i = 0; i < b.size(); i++)
-            {
-                if (i != b.size() - 1)
-                {
-                    if (PVector.dist(b.get(i), b.get(i + 1)) > scaleFactor * 7000)
-                    {
-                        b.remove(i + 1);
-                        b.remove(i);
-                        i--;
-                        i--;
-                    }
-                }
-            }
-        }
-
-    }
-
-    public void drawAllCurves(ArrayList<ArrayList<PVector>> A)
-    {
-        for (ArrayList<PVector> b : A)
-        {
-            for (int i = 0; i < b.size(); i++)
-            {
-                if (i != b.size() - 1)
-                {
-                    if (PVector.dist(b.get(i), b.get(i + 1)) > scaleFactor * 7000)
-                    {
-                        stroke(255, 0, 0);
-                    }
-                    line(b.get(i).x, b.get(i).y, b.get(i + 1).x, b.get(i + 1).y);
-                    stroke(0);
-
-                }
-            }
-        }
-    }
 
     public void draw()
     {
@@ -251,25 +136,16 @@ public class SynthMain extends PApplet
         background(255);
         if (!paused)
         {
-//            boidLoop();
-            boids.get(0).flowAlongCurve(curveVertexTree, curveHashTable, curves);
-            boids.get(0).integrate();
+            boidLoop();
         }
 
-        //drawAllCurves(curves);
-        ellipse(0,0,5,5);
-        boidDraw();
-    }
-
-    void scaleCurves(ArrayList<ArrayList<PVector>> A, float scaleFactor)
-    {
-        for (ArrayList<PVector> list : A)
+        if (drawCurves)
         {
-            for (PVector vec : list)
-            {
-                vec.mult(scaleFactor);
-            }
+            roads.draw();
+
         }
+        ellipse(0, 0, 5, 5);
+        boidDraw();
     }
 
 
@@ -282,14 +158,39 @@ public class SynthMain extends PApplet
 
         for (int i = 0; i < boids.size(); i++)
         {
-            if (population.length > 1)
+            if (!boids.get(i).isFrozen)
             {
-                boids.get(i).align(boidTree, boids, tempPop);
-                boids.get(i).cohesionRepulsion(boidTree);
+                assert boids.get(i).isFrozen == false;
+                if (population.length > 1)
+                {
+                    if (!followNoise)
+                    {
+                        boids.get(i).flowAlongCurve(roads);
+                        //boids.get(i).align(boidTree, boids, tempPop);
+                        //boids.get(i).cohesionRepulsion(boidTree, boids, tempPop);
+                        boidCount = boids.get(i).attractToCurve(boidCount, roads, boidTree, boids, tempPop);
+                    }
+                    else
+                    {
+                        noiseSeed(floor(random(20000)));
+                        boids.get(i).wanderNoise();
+                    }
+                }
+                if (!boids.get(i).isFrozen)
+                {
+                    boids.get(i).integrate();
+                }
             }
-            boids.get(i).integrate();
-
             population[i] = boids.get(i).position;
+        }
+        if (frameNum % 10 == 0)
+        {
+            System.out.println(boidCount);
+        }
+        if (boidCount == 0)
+        {
+            paused = true;
+            saveBoids();
         }
     }
 
@@ -297,10 +198,10 @@ public class SynthMain extends PApplet
     {
         for (Boid element : boids)
         {
-            element.draw(50, false);
+            element.draw(3, false);
             pushMatrix();
             translate(element.position.x, element.position.y, element.position.z);
-            ellipse(0, 0, 50, 50);
+            //ellipse(0, 0, 5, 5);
             popMatrix();
         }
     }
@@ -351,6 +252,10 @@ public class SynthMain extends PApplet
         else if (key == 'm')
         {
             drawneighbours = !drawneighbours;
+        }
+        else if (key == 'n')
+        {
+            followNoise = !followNoise;
         }
 
 

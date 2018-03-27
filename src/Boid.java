@@ -3,7 +3,6 @@ import processing.core.PConstants;
 import processing.core.PVector;
 
 import java.util.ArrayList;
-import java.util.Hashtable;
 
 public class Boid
 {
@@ -12,6 +11,7 @@ public class Boid
     public PVector normal = new PVector(0, 0, 1);
     float sightInner;
     float sightOuter;
+    boolean isFrozen = false;
     private float mass;
     private float maxVel;
     private float maxForce;
@@ -53,56 +53,131 @@ public class Boid
         sightInner = app.random(0.4f * sightOuter, 0.9f * sightOuter);
     }
 
+    public Boid(float _mass, PVector _position, float _maxVel, float _maxForce, PVector n, float _sightOuter, float _sightInner, PApplet _app)
+    {
+        maxVel = _maxVel;
+        maxForce = _maxForce;
+        mass = _mass;
+        position = _position;
+        acceleration = new PVector();
+        velocity = new PVector();
+        app = _app;
+        normal = n;
+        sightOuter = _sightOuter;
+        sightInner = _sightInner;
+    }
+
     public void addForce(PVector force)
     {
         if (force.mag() > maxForce && maxForce != -1) force.setMag(maxForce);
         acceleration.add(PVector.div(force, mass));
     }
 
-    public void flowAlongCurve(KDTree curvePointTree, Hashtable<PVector, int[]> curveIndexTable, ArrayList<ArrayList<PVector>> curves)
+    public void flowAlongCurve(CurveCollection crv)
     {
-        PVector cp = curvePointTree.nearestNeighbor(position);
-        int[] indices = curveIndexTable.get(cp);
+        PVector cp = crv.curvePointTree.nearestNeighbor(position);
+        int[] indices = crv.curveIndexTable.get(cp);
         PVector next = new PVector();
-        if (curves.get(indices[0]).size() != indices[1]+1)
+        if (crv.curves.get(indices[0]).size() != indices[1] + 1)
         {
-            next = curves.get(indices[0]).get(indices[1] + 1);
+            next = crv.curves.get(indices[0]).get(indices[1] + 1);
             PVector desired = PVector.sub(next, cp);
             desired.setMag(maxVel);
             addSteer(desired);
         }
     }
 
-    public void escapeCurves(ArrayList<ArrayList<PVector>> curves, KDTree curvePointTree, Hashtable<PVector, int[]> curveIndexTable, float searchRadius)
+    public void wanderNoise()
     {
-        ArrayList<PVector> results = curvePointTree.radiusNeighbours(position, searchRadius);
-        ArrayList<int[]> resultsIndices = new ArrayList<>();
-        int numCurves = 0;
-        for (PVector result : results)
-        {
-            int[] resultIndex = curveIndexTable.get(result);
-            if (resultsIndices.size() != 0)
-            {
-                for (int[] element : resultsIndices)
-                {
-                    if (element[0] == resultIndex[0])
-                    {
-                        numCurves++;
-                    }
-                }
-            }
-            resultsIndices.add(resultIndex);
-        }
-        if (numCurves == 2)
-        {
-            //TODO(bryn): Finish this
-            //Get 2 closest points that are on different curves
-            //If we determine we're between them, gtfo
+        float noiseVal = app.noise(position.x / 100, position.y / 100);
+        float angleVal = app.map(noiseVal, 0, 1, 0, PConstants.TWO_PI);
+        PVector desiredHeading = PVector.fromAngle(angleVal);
+        desiredHeading.setMag(maxVel);
+        desiredHeading.mult(-1);
+        addSteer(desiredHeading);
+    }
 
-        }
+    public void wanderRandom()
+    {
+        float randomAngle = app.random(PConstants.TWO_PI);
+        PVector desiredHeading = PVector.fromAngle(randomAngle);
+        desiredHeading.setMag(maxVel);
+        addSteer(desiredHeading);
 
     }
 
+    public int attractToCurve(int currentCount, CurveCollection crv, KDTree boidTree, ArrayList<Boid> boids, ArrayList<PVector> population)
+    {
+        PVector cp = crv.curvePointTree.nearestNeighbor(position);
+
+//        int[] indices = crv.curveIndexTable.get(cp);
+//        PVector secondClosest;
+//        PVector next = new PVector();
+//        PVector prev = new PVector();
+//        if (crv.curves.get(indices[0]).size() != indices[1] + 1)
+//        {
+//            next = crv.curves.get(indices[0]).get(indices[1] + 1);
+//        }
+//        if (indices[1] != 0)
+//        {
+//            prev = crv.curves.get(indices[0]).get(indices[1] - 1);
+//        }
+//        if (position.dist(next) < position.dist(prev))
+//        {
+//            secondClosest = next.copy();
+//        }
+//        else
+//        {
+//            secondClosest = prev.copy();
+//        }
+//        cp = CurveCollection.SegmentClosestPoint(cp, secondClosest, position);
+//
+        assert !cp.equals(new PVector(Float.MAX_VALUE, Float.MAX_VALUE, Float.MAX_VALUE));
+        if (cp.dist(position) < (21000 * crv.scaleFactor) && cp.dist(position) > (19000 * crv.scaleFactor))
+        {
+            currentCount = arriveAtCurve(currentCount, cp, boidTree, crv.scaleFactor, boids, population);
+        }
+        else
+        {
+            PVector direction = PVector.sub(position, cp);
+            direction.normalize().mult(20000 * crv.scaleFactor);
+            PVector target = PVector.add(direction, cp);
+            attract(target);
+        }
+        return currentCount;
+    }
+
+    public int arriveAtCurve(int countCurrent, PVector cpOnCurve, KDTree positionTree, float scaleFactor, ArrayList<Boid> boids, ArrayList<PVector> population)
+    {
+        float dist = PVector.dist(position, cpOnCurve);
+        ArrayList<PVector> neighbours = positionTree.radiusNeighbours(position, sightInner);
+        boolean shouldFreeze = true;
+        for (PVector element : neighbours)
+        {
+            if (SynthMain.drawneighbours)
+            {
+                app.stroke(255, 255, 0);
+                app.line(position.x, position.y, position.z, element.x, element.y, element.z);
+            }
+
+            int boidIndex = population.indexOf(element);
+            if (boids.get(boidIndex).isFrozen)
+            {
+                //face cpOnCurve
+                shouldFreeze = false;
+
+            }
+        }
+        if (shouldFreeze)
+        {
+            PVector newVel = PVector.sub(cpOnCurve, position);
+            newVel.normalize();
+            velocity = newVel;
+            this.isFrozen = true;
+            countCurrent--;
+        }
+        return countCurrent;
+    }
     private void addSteer(PVector desired)
     {
         PVector steer = PVector.sub(desired, velocity);
@@ -121,8 +196,10 @@ public class Boid
     public void attract(PVector target)
     {
         PVector desired = PVector.sub(target, position);
+        desired.setMag(maxVel);
         addSteer(desired);
     }
+
 
     public void twist(Plane twistingPlane, boolean direction)
     {
@@ -241,7 +318,8 @@ public class Boid
 
     }
 
-    public void cohesionRepulsion(KDTree pointsTree)
+
+    public void cohesionRepulsion(KDTree pointsTree, ArrayList<Boid> boidsList, ArrayList<PVector> population)
     {
         int attractioncount = 0;
         ArrayList<PVector> neighbours = pointsTree.radiusNeighbours(position, this.sightOuter);
@@ -249,7 +327,7 @@ public class Boid
         PVector desiredAttraction = new PVector();
         for (PVector element : neighbours)
         {
-            if (element.dist(position) < this.sightInner)
+            if (element.dist(position) < this.sightInner && !boidsList.get(population.indexOf(element)).isFrozen)
             {
                 if (SynthMain.drawneighbours)
                 {
@@ -261,7 +339,7 @@ public class Boid
                 desired.mult(1 / position.dist(element));
                 desiredRepulsion.add(desired);
             }
-            else
+            else if (!boidsList.get(population.indexOf(element)).isFrozen)
             {
                 if (SynthMain.drawneighbours)
                 {
@@ -340,12 +418,20 @@ public class Boid
         app.pushMatrix();
         app.translate(position.x, position.y, position.z);
 
-        app.stroke(255, 0, 0);
+        if (isFrozen)
+        {
+            app.stroke(0, 255, 0);
+        }
+        else
+        {
+            app.stroke(255, 0, 0);
+        }
         app.noFill();
         //Plane pl = new Plane(new PVector(0, 0, 0), normal, velocity);
         PVector v = velocity.copy();
         v.normalize();
-        app.line(0, 0, 0, scalar * v.x, scalar * v.y, scalar * v.z);
+        v.setMag(scalar);
+        app.line(0, 0, 0, v.x, v.y, v.z);
 
         app.popMatrix();
         if (drawSight)
