@@ -1,7 +1,6 @@
 import peasy.PeasyCam;
 import processing.core.PApplet;
 import processing.core.PVector;
-
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.PrintWriter;
@@ -26,6 +25,7 @@ public class SynthMain extends PApplet
     private KDTree boidTree;
     private PeasyCam camera;
     private PVector[] population;
+    private float[] lateralSep, roadSep;
     private ArrayList<Boid> boids;
     private int frameNum = 0;
 
@@ -66,8 +66,7 @@ public class SynthMain extends PApplet
                     outList.add(new PVector(x, y, 0));
                 }
             }
-        }
-        catch (IOException e)
+        } catch (IOException e)
         {
             System.out.println("IOException: " + e);
         }
@@ -81,25 +80,48 @@ public class SynthMain extends PApplet
 
     public void setup()
     {
+
+        String OS = System.getProperty("os.name");
+        System.out.println(OS);
         camera = new PeasyCam(this, 500);
-        population = readPopulationFromFile("/home/bryn/Downloads/houselocationsinitial.txt", this).toArray(new PVector[0]);
+
+        if (OS.equals("Linux"))
+        {
+            population = readPopulationFromFile("/home/bryn/Downloads/houselocationsinitial.txt", this).toArray(new PVector[0]);
+        }
+        else
+        {
+            String housePath = "/Users/evilg/Google%20Drive/Architecture/2018/Semester%201/Research/txts/";
+            population = readPopulationFromFile(housePath + "houselocations.txt", this).toArray(new PVector[0]);
+            lateralSep = readFloatArrayFromFile(housePath + "latsep.txt");
+            roadSep = readFloatArrayFromFile(housePath + "roadsep.txt");
+        }
         for (int i = 0; i < population.length; i++)
         {
             population[i].mult(scaleFactor);
+            lateralSep[i] *= scaleFactor;
+            roadSep[i] *= scaleFactor;
         }
         boids = new ArrayList<>();
         for (int i = 0; i < population.length; i++)
         {
+            float offset = 0;
+            if (floor(random(100)) == 0)
+            {
+                offset = random(-15000, 0);
+            }
+            offset *= scaleFactor;
             boids.add(new Boid(1, population[i], 0.75f, 0.1f, new PVector(0, 0, 1),
-                    75000 * scaleFactor, 22500 * scaleFactor, this));
+                    75000 * scaleFactor, offset + lateralSep[i], this));
         }
         boidCount = population.length;
-
-        String OS = System.getProperty("os.name");
-        System.out.println(OS);
         if (OS.equals("Linux"))
         {
             roads = new CurveCollection("/home/bryn/Downloads/1.crv", scaleFactor, this);
+        }
+        else
+        {
+            roads = new CurveCollection("/Users/evilg/Google%20Drive/Architecture/2018/Semester%201/Research/txts/1.crv", scaleFactor, this);
         }
     }
 
@@ -121,6 +143,35 @@ public class SynthMain extends PApplet
         boidDraw();
     }
 
+    float[] readFloatArrayFromFile(String absolutePath)
+    {
+        Charset charset = Charset.forName("US-ASCII");
+        String p = "file://" + absolutePath;
+        Path file = Paths.get(URI.create(p));
+
+        System.out.println(file);
+        ArrayList<Float> outList = new ArrayList<>();
+        try (BufferedReader reader = Files.newBufferedReader(file, charset))
+        {
+
+            String line;
+            while ((line = reader.readLine()) != null)
+            {
+                outList.add(Float.parseFloat(line));
+            }
+        } catch (IOException e)
+        {
+            System.err.format("IOException: %s%n", e);
+        }
+        float[] outArray = new float[outList.size()];
+        for (int i = 0; i < outList.size(); i++)
+        {
+            outArray[i] = outList.get(i);
+        }
+        return outArray;
+
+    }
+
 
     void boidLoop()
     {
@@ -139,7 +190,7 @@ public class SynthMain extends PApplet
                     if (!followNoise)
                     {
                         boids.get(i).flowAlongCurve(roads);
-                        boidCount = boids.get(i).attractToCurve(boidCount, roads, boidTree, boids, tempPop);
+                        boidCount = boids.get(i).attractToCurve(boidCount, roads, boidTree, boids, tempPop, roadSep[i]);
                     }
                     else
                     {
@@ -169,7 +220,7 @@ public class SynthMain extends PApplet
     {
         for (Boid element : boids)
         {
-            element.draw(3, false);
+            element.draw(element.sightInner, false);
             pushMatrix();
             translate(element.position.x, element.position.y, element.position.z);
             //ellipse(0, 0, 5, 5);
@@ -261,8 +312,7 @@ public class SynthMain extends PApplet
             }
             outDist.close();
             System.out.println("done");
-        }
-        catch (IOException e)
+        } catch (IOException e)
         {
             System.out.println("Unhandled IO Exception " + e);
         }

@@ -106,41 +106,40 @@ public class Boid
 
     }
 
-    public int attractToCurve(int currentCount, CurveCollection crv, KDTree boidTree, ArrayList<Boid> boids, ArrayList<PVector> population)
+    public int attractToCurve(int currentCount, CurveCollection crv, KDTree boidTree, ArrayList<Boid> boids, ArrayList<PVector> population, float distance)
     {
         PVector cp = crv.curvePointTree.nearestNeighbor(position);
 
-//        int[] indices = crv.curveIndexTable.get(cp);
-//        PVector secondClosest;
-//        PVector next = new PVector();
-//        PVector prev = new PVector();
-//        if (crv.curves.get(indices[0]).size() != indices[1] + 1)
-//        {
-//            next = crv.curves.get(indices[0]).get(indices[1] + 1);
-//        }
-//        if (indices[1] != 0)
-//        {
-//            prev = crv.curves.get(indices[0]).get(indices[1] - 1);
-//        }
-//        if (position.dist(next) < position.dist(prev))
-//        {
-//            secondClosest = next.copy();
-//        }
-//        else
-//        {
-//            secondClosest = prev.copy();
-//        }
-//        cp = CurveCollection.SegmentClosestPoint(cp, secondClosest, position);
-//
-        assert !cp.equals(new PVector(Float.MAX_VALUE, Float.MAX_VALUE, Float.MAX_VALUE));
-        if (cp.dist(position) < (21000 * crv.scaleFactor) && cp.dist(position) > (19000 * crv.scaleFactor))
+        int[] indices = crv.curveIndexTable.get(cp);
+        PVector secondClosest;
+        PVector next = new PVector();
+        PVector prev = new PVector();
+        if (crv.curves.get(indices[0]).size() != indices[1] + 1)
+        {
+            next = crv.curves.get(indices[0]).get(indices[1] + 1);
+        }
+        if (indices[1] != 0)
+        {
+            prev = crv.curves.get(indices[0]).get(indices[1] - 1);
+        }
+        if (position.dist(next) < position.dist(prev))
+        {
+            secondClosest = next.copy();
+        }
+        else
+        {
+            secondClosest = prev.copy();
+        }
+        cp = CurveCollection.SegmentClosestPoint(cp, secondClosest, position);
+
+        if (cp.dist(position) < (distance + 1000 * crv.scaleFactor) && cp.dist(position) > (distance - 1000 * crv.scaleFactor))
         {
             currentCount = arriveAtCurve(currentCount, cp, boidTree, crv.scaleFactor, boids, population);
         }
         else
         {
             PVector direction = PVector.sub(position, cp);
-            direction.normalize().mult(20000 * crv.scaleFactor);
+            direction.normalize().mult(distance);
             PVector target = PVector.add(direction, cp);
             attract(target);
         }
