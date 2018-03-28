@@ -23,9 +23,6 @@ public class SynthMain extends PApplet
     private boolean paused = false;
     private boolean drawCurves = false;
     private boolean reset = false;
-    private float x = 0;
-    private float y = 0;
-    private float z = 0;
     private KDTree boidTree;
     private PeasyCam camera;
     private PVector[] population;
@@ -46,7 +43,6 @@ public class SynthMain extends PApplet
                 indexList.add(i);
             }
         return indexList;
-
     }
 
     public ArrayList<PVector> readPopulationFromFile(String absolutePath, PApplet app)
@@ -57,7 +53,6 @@ public class SynthMain extends PApplet
 
         System.out.println(file);
         ArrayList<PVector> outList = new ArrayList<>();
-        int currentNum = 0;
         try (BufferedReader reader = Files.newBufferedReader(file, charset))
         {
             String line = "";
@@ -68,13 +63,6 @@ public class SynthMain extends PApplet
                     String[] substrings = line.split(" ");
                     float x = Float.parseFloat(substrings[0]);
                     float y = Float.parseFloat(substrings[1]);
-//                    if (currentNum <= boidCount)
-//                    {
-//                    }
-//                    else
-//                    {
-//                        break;
-//                    }
                     outList.add(new PVector(x, y, 0));
                 }
             }
@@ -94,18 +82,12 @@ public class SynthMain extends PApplet
     public void setup()
     {
         camera = new PeasyCam(this, 500);
-
         population = readPopulationFromFile("/home/bryn/Downloads/houselocationsinitial.txt", this).toArray(new PVector[0]);
-
         for (int i = 0; i < population.length; i++)
         {
             population[i].mult(scaleFactor);
         }
         boids = new ArrayList<>();
-//        for (PVector point : population)
-//        {
-//            boids.add(new Boid(1, point, 5, 0.01f, new PVector(0, 0, 1), 500, this));
-//        }
         for (int i = 0; i < population.length; i++)
         {
             boids.add(new Boid(1, population[i], 0.75f, 0.1f, new PVector(0, 0, 1),
@@ -115,18 +97,10 @@ public class SynthMain extends PApplet
 
         String OS = System.getProperty("os.name");
         System.out.println(OS);
-        if (OS.equals("Windows 10"))
-        {
-
-        }
-        else
+        if (OS.equals("Linux"))
         {
             roads = new CurveCollection("/home/bryn/Downloads/1.crv", scaleFactor, this);
-
         }
-
-//        boids.get(0).escapeCurves(curves, curveVertexTree, curveHashTable, 50);
-
     }
 
 
@@ -142,7 +116,6 @@ public class SynthMain extends PApplet
         if (drawCurves)
         {
             roads.draw();
-
         }
         ellipse(0, 0, 5, 5);
         boidDraw();
@@ -166,8 +139,6 @@ public class SynthMain extends PApplet
                     if (!followNoise)
                     {
                         boids.get(i).flowAlongCurve(roads);
-                        //boids.get(i).align(boidTree, boids, tempPop);
-                        //boids.get(i).cohesionRepulsion(boidTree, boids, tempPop);
                         boidCount = boids.get(i).attractToCurve(boidCount, roads, boidTree, boids, tempPop);
                     }
                     else
@@ -206,7 +177,6 @@ public class SynthMain extends PApplet
         }
     }
 
-
     public void keyPressed()
     {
         if (key == 'h')
@@ -221,30 +191,6 @@ public class SynthMain extends PApplet
         {
             paused = !paused;
         }
-        else if (key == 'w')
-        {
-            x += 10;
-        }
-        else if (key == 's')
-        {
-            x -= 10;
-        }
-        else if (key == 'a')
-        {
-            y += 10;
-        }
-        else if (key == 'd')
-        {
-            y -= 10;
-        }
-        else if (key == 'q')
-        {
-            z += 10;
-        }
-        else if (key == 'e')
-        {
-            z -= 10;
-        }
         else if (key == ENTER)
         {
             saveBoids();
@@ -257,8 +203,6 @@ public class SynthMain extends PApplet
         {
             followNoise = !followNoise;
         }
-
-
     }
 
     public void saveBoids()
@@ -277,8 +221,6 @@ public class SynthMain extends PApplet
             Plane temp = new Plane(population[i], x, y, z);
             plArray.add(temp);
         }
-
-
         try
         {
             System.out.println("writing positions");
@@ -311,7 +253,6 @@ public class SynthMain extends PApplet
                 outZ.println(p.z.x + ", " + p.z.y + ", " + p.z.z);
             }
             outZ.close();
-
             PrintWriter outDist = new PrintWriter(fileID + "distance.txt");
             for (Boid b : boids)
             {
@@ -320,7 +261,6 @@ public class SynthMain extends PApplet
             }
             outDist.close();
             System.out.println("done");
-
         }
         catch (IOException e)
         {
@@ -328,4 +268,3 @@ public class SynthMain extends PApplet
         }
     }
 }
-
