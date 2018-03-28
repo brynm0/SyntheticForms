@@ -1,3 +1,5 @@
+package Synth;
+
 import processing.core.PApplet;
 import processing.core.PConstants;
 import processing.core.PVector;
@@ -224,7 +226,7 @@ public class Mesh
         try
         {
             PrintWriter p = new PrintWriter(fileID + "out.obj");
-            p.println("# Mesh produced by custom script");
+            p.println("# Synth.Mesh produced by custom script");
             p.println("# Bryn Murrell 2018");
 
 

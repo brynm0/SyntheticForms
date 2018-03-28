@@ -1,10 +1,10 @@
+package Synth;
+
 import processing.core.PApplet;
 import processing.core.PConstants;
 import processing.core.PVector;
-import sun.awt.geom.Curve;
 
 import java.util.ArrayList;
-import java.util.Hashtable;
 
 public class Boid
 {
@@ -186,7 +186,7 @@ public class Boid
         ArrayList<PVector> neighbours = pointsTree.radiusNeighbours(position, radius);
         if (neighbours.size() != 0)
         {
-//            if (SynthMain.drawnNeighbours)
+//            if (Synth.SynthMain.drawnNeighbours)
 //            {
 //                for (PVector neighbour : neighbours)
 //                {
@@ -328,7 +328,7 @@ public class Boid
 
         app.stroke(255, 0, 0);
         app.noFill();
-        //Plane pl = new Plane(new PVector(0, 0, 0), normal, velocity);
+        //Synth.Plane pl = new Synth.Plane(new PVector(0, 0, 0), normal, velocity);
         PVector v = velocity.copy();
         v.normalize();
         app.line(0, 0, 0, scalar * v.x, scalar * v.y, scalar * v.z);

@@ -1,6 +1,6 @@
-import processing.core.PVector;
+package Synth;
 
-import java.awt.*;
+import processing.core.PVector;
 
 public class Plane
 {

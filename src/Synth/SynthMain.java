@@ -1,3 +1,5 @@
+package Synth;
+
 import peasy.PeasyCam;
 import processing.core.PApplet;
 import processing.core.PVector;
@@ -32,10 +34,10 @@ public class SynthMain extends PApplet
     private ArrayList<Boid> boids;
     private int boidCount = 1250;
     private int frameNum = 0;
-   // CurveCollection curves;
+    CurveCollection curves;
     public static void main(String[] args)
     {
-        PApplet.main("SynthMain", args);
+        PApplet.main("Synth.SynthMain", args);
     }
 
     public static ArrayList<Integer> indexOfAll(Object obj, ArrayList list)
@@ -94,16 +96,16 @@ public class SynthMain extends PApplet
         System.out.println(OS);
         if (OS.equals("Windows 10"))
         {
-            String currentDirectory = "/Users/evilg/Google%20Drive/Architecture/2018/Semester%201/Synthetic%20Forms/Week%204b/Textural/Base/5/";
+            String currentDirectory = "/Users/evilg/Google%20Drive/Architecture/2018/Semester%201/Synthetic%20Forms/Week%205a/Base%20Mesh/";
             curveList.add(readCrv(currentDirectory + "1.txt"));
             curveList.add(readCrv(currentDirectory + "2.txt"));
-            meshList = Mesh.readMeshes(currentDirectory + "5l.obj", this);
+            meshList = Mesh.readMeshes(currentDirectory + "wuh.obj", this);
         }
         else
         {
             meshList = Mesh.readMeshes("/home/bryn/BaseMeshes/4.obj", this);
         }
-        //curves = new CurveCollection(curveList, this);
+        curves = new CurveCollection(curveList, this);
         for (Mesh mesh : meshList)
         {
             if (mesh.vertices.size() != 0)
@@ -112,11 +114,10 @@ public class SynthMain extends PApplet
                 break;
             }
         }
-        float scaleFactor = 0.02f;
-        m.moveMeshCentreToWorld();
+        float scaleFactor = 75;
         m.scale(scaleFactor, new PVector());
         m = m.convQuadsToTris();
-//        curves.scale(scaleFactor, new PVector());
+        curves.scale(scaleFactor, new PVector());
 
         PVector[] points = new PVector[m.vertices.size()];
         for (int i = 0; i < m.vertices.size(); i++)
@@ -130,7 +131,7 @@ public class SynthMain extends PApplet
         for (int i = 0; i < population.length; i++)
         {
             Boid newboid = new Boid(random(5, 10), population[i], random(1, 6),
-                    random(1, 6), normalList.get(i), random(250, 500), this);
+                    random(1, 6), normalList.get(i), random(100, 200), this);
             boids.add(newboid);
         }
         m.popNoise();
@@ -175,7 +176,7 @@ public class SynthMain extends PApplet
         }
         if (drawCurves)
         {
-//            curves.draw();
+           curves.draw();
         }
     }
 
@@ -197,9 +198,9 @@ public class SynthMain extends PApplet
             {
                 boids.get(i).align(boidTree, boids, tempPop);
                 boids.get(i).cohesionRepulsion(boidTree);
-                boids.get(i).followMeshNoiseField(m, meshVertexTree, 0.05f, false);
-//                boids.get(i).flowAlongCurve(curves, 1f);
-//                boids.get(i).attractRepelCurves(curves,0.2f);
+                boids.get(i).followMeshNoiseField(m, meshVertexTree, 0.2f, false);
+                boids.get(i).flowAlongCurve(curves, 1f);
+                boids.get(i).attractRepelCurves(curves,0.2f);
                 if (twist)
                 {
                     boids.get(i).twist(new Plane(twistBoid.position.copy(), twistBoid.normal.copy()), twistDirection);
