@@ -51,7 +51,7 @@ public class Boid
         app = _app;
         normal = n;
         sightOuter = _sightOuter;
-        sightInner = app.random(0.4f * sightOuter, 0.9f * sightOuter);
+        sightInner = app.random(0.4f * sightOuter, 0.75f * sightOuter);
     }
 
     public void addForce(PVector force)
@@ -133,6 +133,35 @@ public class Boid
         }
     }
 
+    public void seekCommonPlane(KDTree pointsTree, ArrayList<PVector> population, ArrayList<Boid> boids)
+    {
+        ArrayList<PVector> neighbours = pointsTree.radiusNeighbours(position, sightOuter);
+        if (neighbours.size() == 0)
+        {
+            return;
+        }
+        PVector originAverage = new PVector();
+        PVector normalAverage = new PVector();
+        for (PVector neighbour : neighbours)
+        {
+            Boid b = boids.get(population.indexOf(neighbour));
+            float t = app.map(position.dist(b.position), 0, sightOuter, 1, 0);
+            originAverage.add(SynthMath.lerpVector(position, b.position, t));
+            normalAverage.add(SynthMath.lerpVector(normal, b.normal, t));
+        }
+        originAverage.div(neighbours.size());
+        normalAverage.div(neighbours.size());
+        if (!originAverage.equals(new PVector()))
+        {
+            Plane p = new Plane(originAverage, normalAverage);
+            PVector planeCp = p.cpOnPlane(position);
+            app.stroke(0, 255, 0);
+            app.line(position.x, position.y, position.z, planeCp.x, planeCp.y, planeCp.z);
+            PVector desired = PVector.sub(p.cpOnPlane(position), position);
+            desired.limit(maxVel);
+            addSteer(desired);
+        }
+    }
 
     private void addSteer(PVector desired)
     {
@@ -202,14 +231,13 @@ public class Boid
 
                 sum.add(boidsList.get(index).velocity);
             }
-            sum.div(neighbours.size());
-            PVector desired;
-            desired = sum;
+            if (!sum.equals(new PVector()))
+            {
+                sum.div(neighbours.size());
+                PVector steer = PVector.sub(sum, velocity);
 
-
-            PVector steer = PVector.sub(desired, velocity);
-
-            addForce(steer);
+                addForce(steer);
+            }
         }
 
     }
@@ -266,14 +294,18 @@ public class Boid
             desiredAttraction.div(attractioncount);
 
         }
-        desiredAttraction = PVector.sub(desiredAttraction, position);
-        PVector steerAway = PVector.sub(desiredRepulsion, velocity);
-        PVector steerToward = PVector.sub(desiredAttraction, velocity);
-        addForce(steerAway);
+        if (!desiredAttraction.equals(new PVector()))
+        {
+            desiredAttraction = PVector.sub(desiredAttraction, position);
+            PVector steerToward = PVector.sub(desiredAttraction, velocity);
+            addForce(steerToward);
 
-        addForce(steerToward);
-
-
+        }
+        if (!desiredRepulsion.equals(new PVector()))
+        {
+            PVector steerAway = PVector.sub(desiredRepulsion, velocity);
+            addForce(steerAway);
+        }
     }
 
     public void repulsion(KDTree pointsTree, float radius)

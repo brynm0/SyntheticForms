@@ -14,6 +14,28 @@ public class Plane
         y = new PVector(0, 1, 0);
         z = new PVector(0, 0, 1);
     }
+    public Plane(PVector _origin, PVector _z, PVector _x)
+    {
+        //a x b
+        //world z needs to be A
+        //local z needs to be B
+        PVector worldZ = new PVector(0, 0, 1);
+        z = _z.copy();
+        x = _x.copy();
+
+        if (z != worldZ)
+        {
+            y = x.cross(z).mult(-1);
+
+
+        }
+        else
+        {
+            y = x.cross(z).mult(-1);
+        }
+        origin = _origin;
+    }
+
 
     public Plane(PVector _origin, PVector _x, PVector _y, PVector _z)
     {
@@ -69,26 +91,11 @@ public class Plane
     }
 
 
-    public Plane(PVector _origin, PVector _z, PVector _x)
+    public PVector cpOnPlane(PVector p)
     {
-        //a x b
-        //world z needs to be A
-        //local z needs to be B
-        PVector worldZ = new PVector(0, 0, 1);
-        z = _z.copy();
-        x = _x.copy();
-
-        if (z != worldZ)
-        {
-            y = x.cross(z).mult(-1);
-
-
-        }
-        else
-        {
-            y = x.cross(z).mult(-1);
-        }
-        origin = _origin;
+        // p' = p - (n ⋅ (p - o)) * n
+        return PVector.sub(p, PVector.mult( z, PVector.dot(z, PVector.sub(p, origin))));
     }
+
 
 }

@@ -23,7 +23,7 @@ public class SynthMain extends PApplet
     private boolean drawMesh = true;
     private boolean drawBoids = true;
     private boolean drawCurves = true;
-    private boolean twist = true;
+    private boolean twist = false;
     Boid twistBoid;
     private KDTree meshVertexTree;
     private KDTree boidTree;
@@ -32,9 +32,10 @@ public class SynthMain extends PApplet
     private PVector[] population;
     private ArrayList<PVector> normalList;
     private ArrayList<Boid> boids;
-    private int boidCount = 1250;
+    private int boidCount = 2500;
     private int frameNum = 0;
     CurveCollection curves;
+
     public static void main(String[] args)
     {
         PApplet.main("Synth.SynthMain", args);
@@ -70,13 +71,40 @@ public class SynthMain extends PApplet
                 PVector tempVec = new PVector(Float.parseFloat(vector[0]), Float.parseFloat(vector[1]), Float.parseFloat(vector[2]));
                 outList.add(tempVec);
             }
-        }
-        catch (IOException e)
+        } catch (IOException e)
         {
             System.out.println("IOException: " + e);
         }
         return outList;
     }
+
+//    public static ArrayList<ArrayList<PVector>> readCrvs(String absolutePath)
+//    {
+//        Charset charset = Charset.forName("US-ASCII");
+//        String p = "file://" + absolutePath;
+//        Path file = Paths.get(URI.create(p));
+//
+//        System.out.println(file);
+//        ArrayList<ArrayList<PVector>> outList = new ArrayList<>();
+//        int currentIndex = 0;
+//        try (BufferedReader reader = Files.newBufferedReader(file, charset))
+//        {
+//
+//            String line;
+//            while ((line = reader.readLine()) != null)
+//            {
+//                String[] vector = line.split(" ");
+//                PVector tempVec = new PVector(Float.parseFloat(vector[0]), Float.parseFloat(vector[1]), Float.parseFloat(vector[2]));
+//                outList.add(tempVec);
+//            }
+//        }
+//        catch (IOException e)
+//        {
+//            System.out.println("IOException: " + e);
+//        }
+//        return outList;
+//    }
+//
 
 
     public void settings()
@@ -96,16 +124,16 @@ public class SynthMain extends PApplet
         System.out.println(OS);
         if (OS.equals("Windows 10"))
         {
-            String currentDirectory = "/Users/evilg/Google%20Drive/Architecture/2018/Semester%201/Synthetic%20Forms/Week%205a/Base%20Mesh/";
+            String currentDirectory = "/Users/evilg/Google%20Drive/Architecture/2018/Semester%201/Synthetic%20Forms/Week%206a/";
             curveList.add(readCrv(currentDirectory + "1.txt"));
             curveList.add(readCrv(currentDirectory + "2.txt"));
-            meshList = Mesh.readMeshes(currentDirectory + "wuh.obj", this);
+            meshList = Mesh.readMeshes(currentDirectory + "1.obj", this);
         }
         else
         {
             meshList = Mesh.readMeshes("/home/bryn/BaseMeshes/4.obj", this);
         }
-        curves = new CurveCollection(curveList, this);
+        //curves = new CurveCollection(curveList, this);
         for (Mesh mesh : meshList)
         {
             if (mesh.vertices.size() != 0)
@@ -114,10 +142,12 @@ public class SynthMain extends PApplet
                 break;
             }
         }
-        float scaleFactor = 75;
+        float scaleFactor = 10;
+        PVector translationTarget = m.moveMeshCentreToWorld();
+        //curves.move(translationTarget);
+        System.out.println(translationTarget);
         m.scale(scaleFactor, new PVector());
-        m = m.convQuadsToTris();
-        curves.scale(scaleFactor, new PVector());
+        //curves.scale(scaleFactor, new PVector());
 
         PVector[] points = new PVector[m.vertices.size()];
         for (int i = 0; i < m.vertices.size(); i++)
@@ -131,7 +161,7 @@ public class SynthMain extends PApplet
         for (int i = 0; i < population.length; i++)
         {
             Boid newboid = new Boid(random(5, 10), population[i], random(1, 6),
-                    random(1, 6), normalList.get(i), random(100, 200), this);
+                    random(1, 6), normalList.get(i), random( 50, 150), this);
             boids.add(newboid);
         }
         m.popNoise();
@@ -174,10 +204,10 @@ public class SynthMain extends PApplet
         {
             boidDraw();
         }
-        if (drawCurves)
-        {
-           curves.draw();
-        }
+//        if (drawCurves)
+//        {
+//            curves.draw();
+//        }
     }
 
 
@@ -187,11 +217,8 @@ public class SynthMain extends PApplet
         ArrayList<PVector> tempPop = new ArrayList<>(Arrays.asList(population));
         boidTree = new KDTree(population, 0, this);
 
-        //twistBoid.position = new PVector();
         twistBoid.followMeshNoiseField(m, meshVertexTree, 1, true);
         twistBoid.integrate();
-        //twistBoid.draw(500);
-
         for (int i = 0; i < boids.size(); i++)
         {
             if (population.length > 1)
@@ -199,8 +226,8 @@ public class SynthMain extends PApplet
                 boids.get(i).align(boidTree, boids, tempPop);
                 boids.get(i).cohesionRepulsion(boidTree);
                 boids.get(i).followMeshNoiseField(m, meshVertexTree, 0.2f, false);
-                boids.get(i).flowAlongCurve(curves, 1f);
-                boids.get(i).attractRepelCurves(curves,0.2f);
+                //boids.get(i).flowAlongCurve(curves, 1f);
+                //boids.get(i).attractRepelCurves(curves, 0.2f);
                 if (twist)
                 {
                     boids.get(i).twist(new Plane(twistBoid.position.copy(), twistBoid.normal.copy()), twistDirection);
@@ -211,6 +238,8 @@ public class SynthMain extends PApplet
         }
     }
 
+    boolean drawEllipse = false;
+
     void boidDraw()
     {
         for (Boid element : boids)
@@ -218,7 +247,10 @@ public class SynthMain extends PApplet
             element.draw(50, false);
             pushMatrix();
             translate(element.position.x, element.position.y, element.position.z);
-            ellipse(0, 0, 50, 50);
+            if (drawEllipse)
+            {
+                ellipse(0, 0, 50, 50);
+            }
             popMatrix();
         }
         if (twist)
@@ -267,6 +299,10 @@ public class SynthMain extends PApplet
         else if (key == 't')
         {
             twist = !twist;
+        }
+        else if (key == 'e')
+        {
+            drawEllipse = !drawEllipse;
         }
 
 
@@ -324,11 +360,11 @@ public class SynthMain extends PApplet
             }
             outZ.close();
 
-            PrintWriter outDist = new PrintWriter(fileID + "distance.txt");
+            PrintWriter outDist = new PrintWriter(fileID + "nearest.txt");
             for (Boid b : boids)
             {
-                float dist = boidTree.nearestNeighbor(b.position).dist(b.position);
-                outDist.println(dist);
+                PVector nearest = boidTree.nearestNeighbor(b.position);
+                outDist.println(nearest.x + ", " + nearest.y + ", " + nearest.z);
             }
             outDist.close();
             System.out.println("done");

@@ -212,7 +212,7 @@ public class Mesh
         for (Mesh m : outputMeshList)
         {
             System.out.println("V: " + m.vertices.size() + " VN: " + m.normals.size()
-                    + " VT: " + m.texCoords.size() + " F: " + m.faceVerts.size());
+                    + " VT: " + m.texCoords.size() + " F: " + m.faceVerts.size() / 4);
 
         }
 
@@ -342,14 +342,16 @@ public class Mesh
         return average;
     }
 
-    public void moveMeshCentreToWorld()
+    public PVector moveMeshCentreToWorld()
     {
         PVector origin = new PVector();
         PVector centre = this.getMeshAverage();
+        PVector transform = PVector.sub(origin, centre);
         for (PVector vertex : vertices)
         {
-            vertex.add(PVector.sub(origin, centre));
+            vertex.add(transform);
         }
+        return transform;
     }
 
 

@@ -65,6 +65,19 @@ public class CurveCollection
         return new KDTree(tempArray, 0, app);
     }
 
+    public void move(PVector transform)
+    {
+        for (ArrayList<PVector> list : curves             )
+        {
+            for (PVector vertex : list                 )
+            {
+                vertex.add(transform);
+            }
+        }
+        curveIndexTable = createCurveMap();
+        curvePointTree = createCurveTree();
+    }
+
     public void scale(float scaleFactor, PVector scaleOrigin)
     {
         for (ArrayList<PVector> curve : curves             )
