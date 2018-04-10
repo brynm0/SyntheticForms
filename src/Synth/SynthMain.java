@@ -13,44 +13,24 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
-import java.util.Arrays;
+import java.util.Collections;
 
 public class SynthMain extends PApplet
 {
-    public static boolean drawNeighbours = false;
-    private boolean twistDirection = false;
-    private boolean paused = false;
-    private boolean drawMesh = true;
-    private boolean drawBoids = true;
-    private boolean drawCurves = true;
-    private boolean twist = false;
-    Boid twistBoid;
-    private KDTree meshVertexTree;
-    private KDTree boidTree;
-    private PeasyCam camera;
-    private Mesh m;
-    private PVector[] population;
-    private ArrayList<PVector> normalList;
-    private ArrayList<Boid> boids;
-    private int boidCount = 2500;
-    private int frameNum = 0;
-    CurveCollection curves;
+    CurveCollection curveCollection;
+    ArrayList<ArrayList<PVector>> dividedCurves;
+    PeasyCam cam;
+    ArrayList<ArrayList<PVector>> shades = new ArrayList<>();
+    float scaleFactor = 0.1f;
+
+    float cellWidthHeight = 1500 * scaleFactor;
+    float zOffset = 300 * scaleFactor;
+    float baseOffset = 150 * scaleFactor;
+    float offsetScalar = 450 * scaleFactor;
 
     public static void main(String[] args)
     {
         PApplet.main("Synth.SynthMain", args);
-    }
-
-    public static ArrayList<Integer> indexOfAll(Object obj, ArrayList list)
-    {
-        ArrayList<Integer> indexList = new ArrayList<Integer>();
-        for (int i = 0; i < list.size(); i++)
-            if (obj.equals(list.get(i)))
-            {
-                indexList.add(i);
-            }
-        return indexList;
-
     }
 
     public static ArrayList<PVector> readCrv(String absolutePath)
@@ -58,7 +38,6 @@ public class SynthMain extends PApplet
         Charset charset = Charset.forName("US-ASCII");
         String p = "file://" + absolutePath;
         Path file = Paths.get(URI.create(p));
-
         System.out.println(file);
         ArrayList<PVector> outList = new ArrayList<>();
         try (BufferedReader reader = Files.newBufferedReader(file, charset))
@@ -71,328 +50,131 @@ public class SynthMain extends PApplet
                 PVector tempVec = new PVector(Float.parseFloat(vector[0]), Float.parseFloat(vector[1]), Float.parseFloat(vector[2]));
                 outList.add(tempVec);
             }
-        } catch (IOException e)
+        }
+        catch (IOException e)
         {
             System.out.println("IOException: " + e);
         }
         return outList;
     }
 
-//    public static ArrayList<ArrayList<PVector>> readCrvs(String absolutePath)
-//    {
-//        Charset charset = Charset.forName("US-ASCII");
-//        String p = "file://" + absolutePath;
-//        Path file = Paths.get(URI.create(p));
-//
-//        System.out.println(file);
-//        ArrayList<ArrayList<PVector>> outList = new ArrayList<>();
-//        int currentIndex = 0;
-//        try (BufferedReader reader = Files.newBufferedReader(file, charset))
-//        {
-//
-//            String line;
-//            while ((line = reader.readLine()) != null)
-//            {
-//                String[] vector = line.split(" ");
-//                PVector tempVec = new PVector(Float.parseFloat(vector[0]), Float.parseFloat(vector[1]), Float.parseFloat(vector[2]));
-//                outList.add(tempVec);
-//            }
-//        }
-//        catch (IOException e)
-//        {
-//            System.out.println("IOException: " + e);
-//        }
-//        return outList;
-//    }
-//
-
-
     public void settings()
     {
         size(1000, 800, P3D);
     }
 
-
     public void setup()
     {
-        camera = new PeasyCam(this, 500);
-        ArrayList<ArrayList<PVector>> curveList = new ArrayList<>();
-        population = new PVector[boidCount];
-        ArrayList<Mesh> meshList;
-
-        String OS = System.getProperty("os.name");
-        System.out.println(OS);
-        if (OS.equals("Windows 10"))
+        cam = new PeasyCam(this, 500);
+        CurveCollection curveCollection = new CurveCollection("/home/bryn/Downloads/shades.crv", this);
+        curveCollection.scale(scaleFactor, new PVector());
+        dividedCurves = new ArrayList<>();
+        for (int i = 0; i < curveCollection.curves.size(); i++)
         {
-            String currentDirectory = "/Users/evilg/Google%20Drive/Architecture/2018/Semester%201/Synthetic%20Forms/Week%206a/";
-            curveList.add(readCrv(currentDirectory + "1.txt"));
-            curveList.add(readCrv(currentDirectory + "2.txt"));
-            meshList = Mesh.readMeshes(currentDirectory + "1.obj", this);
+            dividedCurves.add(CurveCollection.divideCurveByLength(curveCollection.curves.get(i),
+                    cellWidthHeight));
         }
-        else
+        int n = 0;
+        n++;
+        Collections.reverse(dividedCurves);
+        for (int j = 0; j < dividedCurves.size() - 1; j++)
         {
-            meshList = Mesh.readMeshes("/home/bryn/BaseMeshes/4.obj", this);
-        }
-        //curves = new CurveCollection(curveList, this);
-        for (Mesh mesh : meshList)
-        {
-            if (mesh.vertices.size() != 0)
+            for (int i = 0; i < dividedCurves.get(j).size() - 1; i++)
             {
-                m = mesh;
-                break;
+                if (i >= dividedCurves.get(j + 1).size())
+                {
+                    break;
+                }
+                ArrayList<PVector> tmp = new ArrayList<>();
+                //vertex(divisions.get(i).x, divisions.get(i).y, divisions.get(i).z);
+                tmp.add(dividedCurves.get(j).get(i));
+                //vertex(divisions2.get(i).x, divisions2.get(i).y, divisions2.get(i).z);
+                tmp.add(dividedCurves.get(j + 1).get(i));
+                PVector point = dividedCurves.get(j).get(i).copy();
+                PVector movement = PVector.sub(tmp.get(1), tmp.get(0)).cross(new PVector(0, 0, -1));
+                movement.normalize();
+                float length = PVector.sub(tmp.get(1), tmp.get(0)).mag();
+                if (length > cellWidthHeight)
+                {
+                    length = cellWidthHeight;
+                }
+                float actualBaseOffset = (baseOffset / cellWidthHeight) * length;
+                float actualOffsetScalar = (offsetScalar / cellWidthHeight) * length;
+
+
+                float northVerticalOffset = movement.dot(new PVector(0, 1, 0)) * actualOffsetScalar;
+                if (northVerticalOffset > 0)
+                {
+                    northVerticalOffset = 0;
+                }
+                northVerticalOffset = Math.abs(northVerticalOffset);
+                float verticalOffset = actualBaseOffset + northVerticalOffset;
+                float horizontalOffset = baseOffset + (Math.abs(movement.dot(new PVector(1, 0, 0)))) * offsetScalar;
+                movement.setMag(zOffset);
+                movement.add(new PVector(0, 0, -1).mult(verticalOffset));
+                movement.add(PVector.sub(tmp.get(1), tmp.get(0)).setMag(horizontalOffset));
+                point.add(movement);
+                tmp.add(point);
+                //vertex(divisions.get(i+1).x, divisions.get(i+1).y, divisions.get(i+1).z);
+                shades.add(tmp);
+                tmp = new ArrayList<>();
+                tmp.add(dividedCurves.get(j).get(i));
+                tmp.add(dividedCurves.get(j).get(i + 1));
+                tmp.add(point);
+                shades.add(tmp);
+
             }
-        }
-        float scaleFactor = 10;
-        PVector translationTarget = m.moveMeshCentreToWorld();
-        //curves.move(translationTarget);
-        System.out.println(translationTarget);
-        m.scale(scaleFactor, new PVector());
-        //curves.scale(scaleFactor, new PVector());
 
-        PVector[] points = new PVector[m.vertices.size()];
-        for (int i = 0; i < m.vertices.size(); i++)
-        {
-            points[i] = m.vertices.get(i);
         }
-        meshVertexTree = new KDTree(points, 0, this);
-        normalList = new ArrayList<>();
-        population = m.populate(boidCount, normalList);
-        boids = new ArrayList<>();
-        for (int i = 0; i < population.length; i++)
-        {
-            Boid newboid = new Boid(random(5, 10), population[i], random(1, 6),
-                    random(1, 6), normalList.get(i), random( 50, 150), this);
-            boids.add(newboid);
-        }
-        m.popNoise();
-        boidTree = new KDTree(population, 0, this);
-        setTwistBoid();
-        Plane p = new Plane(new PVector(), new PVector(0.5f, 0, 0), new PVector(0, 0.5f, 0), new PVector(0, 0, 0.5f));
-        PVector vToOrient = new PVector(1, 1, 1);
-        System.out.println(p.changeBasis(vToOrient));
-    }
+        saveShades();
 
-    public void setTwistBoid()
-    {
-        int randIndex = floor(random(m.vertices.size()));
-        PVector randVertex = m.vertices.get(randIndex);
-        int normalIndex = (m.faceVerts.indexOf(randIndex));
-        normalIndex = m.faceNormals.get(normalIndex);
-        float rand = random(0, 1);
-        PVector randNormal = m.normals.get(normalIndex).copy();
-        if (random(1) < 0.5)
-        {
-            twistDirection = !twistDirection;
-        }
-        twistBoid = new Boid(1, randVertex.copy(), 5, 5, randNormal, 500, this);
     }
 
     public void draw()
     {
-        frameNum++;
         background(255);
-        if (drawMesh)
+        stroke(0);
+        //line(test.get(0).x, test.get(0).y, test.get(0).z, test.get(1).x, test.get(1).y, test.get(1).z);
+        //line(test2.get(0).x, test2.get(0).y, test2.get(0).z, test2.get(1).x, test2.get(1).y, test2.get(1).z);
+        for (ArrayList<PVector> list : shades)
         {
+            beginShape();
+            stroke(0);
             fill(255);
-            m.drawWires(0, 1);
-        }
-        if (!paused)
-        {
-            boidLoop();
-        }
-        if (drawBoids)
-        {
-            boidDraw();
-        }
-//        if (drawCurves)
-//        {
-//            curves.draw();
-//        }
-    }
-
-
-    void boidLoop()
-    {
-
-        ArrayList<PVector> tempPop = new ArrayList<>(Arrays.asList(population));
-        boidTree = new KDTree(population, 0, this);
-
-        twistBoid.followMeshNoiseField(m, meshVertexTree, 1, true);
-        twistBoid.integrate();
-        for (int i = 0; i < boids.size(); i++)
-        {
-            if (population.length > 1)
+            for (PVector point : list)
             {
-                boids.get(i).align(boidTree, boids, tempPop);
-                boids.get(i).cohesionRepulsion(boidTree);
-                boids.get(i).followMeshNoiseField(m, meshVertexTree, 0.2f, false);
-                //boids.get(i).flowAlongCurve(curves, 1f);
-                //boids.get(i).attractRepelCurves(curves, 0.2f);
-                if (twist)
-                {
-                    boids.get(i).twist(new Plane(twistBoid.position.copy(), twistBoid.normal.copy()), twistDirection);
-                }
+                vertex(point.x, point.y, point.z);
             }
-            boids.get(i).integrate();
-            population[i] = boids.get(i).position;
+            endShape(CLOSE);
         }
-    }
-
-    boolean drawEllipse = false;
-
-    void boidDraw()
-    {
-        for (Boid element : boids)
-        {
-            element.draw(50, false);
-            pushMatrix();
-            translate(element.position.x, element.position.y, element.position.z);
-            if (drawEllipse)
-            {
-                ellipse(0, 0, 50, 50);
-            }
-            popMatrix();
-        }
-        if (twist)
-        {
-            pushMatrix();
-            translate(twistBoid.position.x, twistBoid.position.y, twistBoid.position.z);
-            noStroke();
-            fill(127, 255, 255, 200);
-            ellipse(0, 0, 100, 100);
-            noFill();
-            popMatrix();
-        }
-    }
-
-
-    public void keyPressed()
-    {
-        if (key == 'h')
-        {
-            drawMesh = !drawMesh;
-        }
-        else if (key == BACKSPACE)
-        {
-            paused = !paused;
-        }
-        else if (key == ENTER)
-        {
-            saveBoids();
-        }
-        else if (key == 'u')
-        {
-            setTwistBoid();
-        }
-        else if (key == 'm')
-        {
-            drawNeighbours = !drawNeighbours;
-        }
-        else if (key == 'b')
-        {
-            drawBoids = !drawBoids;
-        }
-        else if (key == 'c')
-        {
-            drawCurves = !drawCurves;
-        }
-        else if (key == 't')
-        {
-            twist = !twist;
-        }
-        else if (key == 'e')
-        {
-            drawEllipse = !drawEllipse;
-        }
-
 
     }
 
-    public void saveBoids()
+    public void saveShades()
     {
         long fileID = System.currentTimeMillis();
-        assert population.length == normalList.size();
-        assert normalList.size() == boids.size();
-        ArrayList<Plane> plArray = new ArrayList<>();
-        PrintWriter out, outX, outY, outZ;
-        for (int i = 0; i < boids.size(); i++)
-        {
-            PVector x = new PVector();
-            boids.get(i).velocity.normalize(x);
-            PVector z = new PVector();
-            boids.get(i).normal.normalize(z);
-            PVector y = x.cross(z).mult(-1);
-            Plane temp = new Plane(population[i], x, y, z);
-            plArray.add(temp);
-        }
-
-
+        PrintWriter out;
         try
         {
             System.out.println("writing positions");
             out = new PrintWriter(fileID + "position" + ".txt");
-            for (PVector position : population)
+
+            for (ArrayList<PVector> triangle : shades)
             {
-                out.println(position.x + ", " + position.y + ", " + position.z);
+                for (PVector point : triangle)
+                {
+                    out.println(point.x + ", " + point.y + ", " + point.z);
+                }
             }
             out.close();
             System.out.println("done");
 
-            System.out.println("writing planes");
-            outX = new PrintWriter(fileID + "planeX" + ".txt");
-            for (Plane p : plArray)
-            {
-                outX.println(p.x.x + ", " + p.x.y + ", " + p.x.z);
-            }
-            outX.close();
-
-            outY = new PrintWriter(fileID + "planeY" + ".txt");
-            for (Plane p : plArray)
-            {
-                outY.println(p.y.x + ", " + p.y.y + ", " + p.y.z);
-            }
-            outY.close();
-
-            outZ = new PrintWriter(fileID + "planeZ" + ".txt");
-            for (Plane p : plArray)
-            {
-                outZ.println(p.z.x + ", " + p.z.y + ", " + p.z.z);
-            }
-            outZ.close();
-
-            PrintWriter outDist = new PrintWriter(fileID + "nearest.txt");
-            for (Boid b : boids)
-            {
-                PVector nearest = boidTree.nearestNeighbor(b.position);
-                outDist.println(nearest.x + ", " + nearest.y + ", " + nearest.z);
-            }
-            outDist.close();
-            System.out.println("done");
-
-        } catch (IOException e)
+        }
+        catch (IOException e)
         {
             System.out.println("Unhandled IO Exception " + e);
         }
     }
-
-//    void meshCPDebug()
-//    {
-//        PVector position = new PVector(x, y, z);
-//        PVector[] cp = m.closestPointOnMesh(position, meshVertexTree);
-//
-//        pushMatrix();
-//        translate(position.x, position.y, position.z);
-//        fill(255, 0, 0);
-//        ellipse(0, 0, 25, 25);
-//        popMatrix();
-//
-//        pushMatrix();
-//        translate(cp[0].x, cp[0].y, cp[0].z);
-//        fill(0, 255, 0);
-//        ellipse(0, 0, 25, 25);
-//        popMatrix();
-//        line(position.x, position.y, position.z, cp[0].x, cp[0].y, cp[0].z);
-//    }
 
 
 }
