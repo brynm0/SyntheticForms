@@ -63,6 +63,12 @@ public class Boid
         acceleration.add(PVector.div(force, mass));
     }
 
+    private void addSteer(PVector desired)
+    {
+        PVector steer = PVector.sub(desired, velocity);
+        addForce(steer);
+    }
+
     public void flowAlongCurve(CurveCollection c, float weight)
     {
         PVector cp = c.curvePointTree.nearestNeighbor(position);
@@ -133,12 +139,6 @@ public class Boid
         }
     }
 
-
-    private void addSteer(PVector desired)
-    {
-        PVector steer = PVector.sub(desired, velocity);
-        addForce(steer);
-    }
 
     public void twist(Plane twistingPlane, boolean direction)
     {
