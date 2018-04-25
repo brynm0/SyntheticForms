@@ -20,9 +20,11 @@ public class SynthMain extends PApplet
     public static boolean drawNeighbours = false;
     private boolean twistDirection = false;
     private boolean paused = false;
-    private boolean drawMesh = true;
+    private boolean drawMesh = false;
     private boolean drawBoids = true;
     private boolean drawCurves = true;
+    //Whether the agents should attract/repel and follow given curves
+    private boolean interactCurves = true;
     private boolean twist = false;
     Boid twistBoid;
     private KDTree meshVertexTree;
@@ -41,6 +43,13 @@ public class SynthMain extends PApplet
         PApplet.main("Synth.SynthMain", args);
     }
 
+
+
+    /*
+     * returns the index of all occurrences of a specific object in a list.
+     * "Object" is the generic base class of all java objects, this will work with any class
+     * This is a fairly slow procedure, as it has to run through the whole list every time.
+     */
     public static ArrayList<Integer> indexOfAll(Object obj, ArrayList list)
     {
         ArrayList<Integer> indexList = new ArrayList<Integer>();
@@ -50,8 +59,17 @@ public class SynthMain extends PApplet
                 indexList.add(i);
             }
         return indexList;
-
     }
+
+    /*
+     * I've got my curves coming in as polylines in a text document
+     * Each line of the document is one point on the curve
+     * e.g.
+     * 2.1 3.5 7.2
+     * 29.2 1 0
+     * 0 53.9 23.7
+     * might be a simple 3 point polyline
+     */
 
     public static ArrayList<PVector> readCrv(String absolutePath)
     {
@@ -78,100 +96,104 @@ public class SynthMain extends PApplet
         return outList;
     }
 
-//    public static ArrayList<ArrayList<PVector>> readCrvs(String absolutePath)
-//    {
-//        Charset charset = Charset.forName("US-ASCII");
-//        String p = "file://" + absolutePath;
-//        Path file = Paths.get(URI.create(p));
-//
-//        System.out.println(file);
-//        ArrayList<ArrayList<PVector>> outList = new ArrayList<>();
-//        int currentIndex = 0;
-//        try (BufferedReader reader = Files.newBufferedReader(file, charset))
-//        {
-//
-//            String line;
-//            while ((line = reader.readLine()) != null)
-//            {
-//                String[] vector = line.split(" ");
-//                PVector tempVec = new PVector(Float.parseFloat(vector[0]), Float.parseFloat(vector[1]), Float.parseFloat(vector[2]));
-//                outList.add(tempVec);
-//            }
-//        }
-//        catch (IOException e)
-//        {
-//            System.out.println("IOException: " + e);
-//        }
-//        return outList;
-//    }
-//
-
-
+    /*
+     * This method is one that must be used when working with Processing in Intellij
+     * Generally only used to declare the size of the window, and the type of renderer being used
+     */
     public void settings()
     {
         size(1000, 800, P3D);
     }
 
-
     public void setup()
     {
         camera = new PeasyCam(this, 500);
         ArrayList<ArrayList<PVector>> curveList = new ArrayList<>();
+
+        //NOTE(bryn): Declaring a population array for the positions of the Boids
         population = new PVector[boidCount];
         ArrayList<Mesh> meshList;
 
+        //NOTE(bryn): Since I don't run windows on my machine, I have to do some OS wrangling for different file paths
+        //Don't worry about this if you're just using Windows
         String OS = System.getProperty("os.name");
         System.out.println(OS);
         if (OS.equals("Windows 10"))
         {
-            String currentDirectory = "/Users/evilg/Google%20Drive/Architecture/2018/Semester%201/Synthetic%20Forms/Week%206a/";
+            String currentDirectory = "/Users/evilg/Google%20Drive/Architecture/2018/Semester%201/Synthetic%20Forms/Week%208a/Base/1/";
             curveList.add(readCrv(currentDirectory + "1.txt"));
             curveList.add(readCrv(currentDirectory + "2.txt"));
-            meshList = Mesh.readMeshes(currentDirectory + "1.obj", this);
+            meshList = Mesh.readMeshes(currentDirectory + "1_rebuild.obj", this);
         }
         else
         {
             meshList = Mesh.readMeshes("/home/bryn/BaseMeshes/4.obj", this);
         }
-        //curves = new CurveCollection(curveList, this);
+
+        //CurveCollection is my class for a collection of curves, it includes a few helpful data structures for
+        //working with large numbers of curves, probably not necessary for this project.
+        curves = new CurveCollection(curveList, this);
         for (Mesh mesh : meshList)
         {
+            //Since a lot of programs export objs with a null, or empty, polygroup, here I'm just setting the
+            //First polygroup with vertices in it to be the active one.
             if (mesh.vertices.size() != 0)
             {
                 m = mesh;
                 break;
             }
         }
-        float scaleFactor = 10;
+        //Sometimes the mesh is too large for processing to display, due to near/far clipping plane issues
+        // https://stackoverflow.com/questions/4590250/what-is-near-clipping-distance-and-far-clipping-distance-in-3d-graphics
+        float scaleFactor = 0.0125f;
+
+        //I only deal w/ pure triangle meshes
+        m = m.convQuadsToTris();
+
+        //This moves the centre of the mesh to 0,0,0 - so I don't have to bother with it in Rhino
         PVector translationTarget = m.moveMeshCentreToWorld();
-        //curves.move(translationTarget);
+        curves.move(translationTarget);
         System.out.println(translationTarget);
         m.scale(scaleFactor, new PVector());
-        //curves.scale(scaleFactor, new PVector());
+        curves.scale(scaleFactor, new PVector());
 
         PVector[] points = new PVector[m.vertices.size()];
         for (int i = 0; i < m.vertices.size(); i++)
         {
             points[i] = m.vertices.get(i);
         }
+        //Creating a KDTree for the vertices of the mesh, to make searching faster
         meshVertexTree = new KDTree(points, 0, this);
+
+        //List of all the normal vectors of the mesh
+        //Used to give the boids an initial normal. Not a great solution
         normalList = new ArrayList<>();
         population = m.populate(boidCount, normalList);
+
+        //Initializing ALL the boids.
         boids = new ArrayList<>();
         for (int i = 0; i < population.length; i++)
         {
+
             Boid newboid = new Boid(random(5, 10), population[i], random(1, 6),
-                    random(1, 6), normalList.get(i), random( 50, 150), this);
+                    random(1, 6), normalList.get(i), random(50, 150), this);
             boids.add(newboid);
         }
+
+        //I have some perlin noise populated on the mesh for a behaviour in which the boids follow a noisefield on the mesh
         m.popNoise();
+
+        //Creating a KDTree for the boids, this needs to be updated any time they move.
+        //Creating a new KDTree and searching it each time they move is still faster than brute force searching.
         boidTree = new KDTree(population, 0, this);
+
+        //The twist boid is a special type of boid that the other boids "orbit" around
         setTwistBoid();
-        Plane p = new Plane(new PVector(), new PVector(0.5f, 0, 0), new PVector(0, 0.5f, 0), new PVector(0, 0, 0.5f));
-        PVector vToOrient = new PVector(1, 1, 1);
-        System.out.println(p.changeBasis(vToOrient));
     }
 
+    /*
+     * This method initialises or resets the twistBoid
+     */
     public void setTwistBoid()
     {
         int randIndex = floor(random(m.vertices.size()));
@@ -204,10 +226,10 @@ public class SynthMain extends PApplet
         {
             boidDraw();
         }
-//        if (drawCurves)
-//        {
-//            curves.draw();
-//        }
+        if (drawCurves)
+        {
+            curves.draw();
+        }
     }
 
 
@@ -217,34 +239,60 @@ public class SynthMain extends PApplet
         ArrayList<PVector> tempPop = new ArrayList<>(Arrays.asList(population));
         boidTree = new KDTree(population, 0, this);
 
+        //The twistBoid "wanders" on the mesh, following its noise field
         twistBoid.followMeshNoiseField(m, meshVertexTree, 1, true);
+        //"integration" simply means updating the velocity with the boid's acceleration, then updating its position with
+        //that velocity (then setting the acceleration to 0)
+        //A bunch of issues that I don't really understand can arise from this.
+        //I'm using semi-implicit Euler integration.
+        //https://gafferongames.com/post/integration_basics/
+        //https://en.wikipedia.org/wiki/Semi-implicit_Euler_method
         twistBoid.integrate();
+
+        //Solving behaviours for ALL the boids
         for (int i = 0; i < boids.size(); i++)
         {
             if (population.length > 1)
             {
+                //This commented out method was an attempt at a draft angle behaviour.
+                //boids.get(i).towardHorizontal(45);
+
+                //Basic boid behaviours.
                 boids.get(i).align(boidTree, boids, tempPop);
                 boids.get(i).cohesionRepulsion(boidTree);
+
+                //This method also "sticks" the boids to the base mesh.
+                //There is a  "weight" variable that determines how much they are able to leave the mesh before being
+                //pulled back in
                 boids.get(i).followMeshNoiseField(m, meshVertexTree, 0.2f, false);
-                //boids.get(i).flowAlongCurve(curves, 1f);
-                //boids.get(i).attractRepelCurves(curves, 0.2f);
+                if (interactCurves)
+                {
+                    boids.get(i).flowAlongCurve(curves, 1f);
+                    boids.get(i).attractRepelCurves(curves, 0.2f);
+                }
                 if (twist)
                 {
                     boids.get(i).twist(new Plane(twistBoid.position.copy(), twistBoid.normal.copy()), twistDirection);
                 }
             }
             boids.get(i).integrate();
+            //Updating the position array with the new positions of the boids
             population[i] = boids.get(i).position;
         }
     }
 
+
     boolean drawEllipse = false;
 
+
+    /*
+     *This method goes through the display of the boids.
+     */
     void boidDraw()
     {
         for (Boid element : boids)
         {
-            element.draw(50, false);
+            element.draw(10, false);
             pushMatrix();
             translate(element.position.x, element.position.y, element.position.z);
             if (drawEllipse)
@@ -265,7 +313,10 @@ public class SynthMain extends PApplet
         }
     }
 
-
+    /*
+     * These are some simple keybindings that I use to control the application
+     * Pressing "enter" will save the boids positions etc to disk
+     */
     public void keyPressed()
     {
         if (key == 'h')
@@ -303,6 +354,10 @@ public class SynthMain extends PApplet
         else if (key == 'e')
         {
             drawEllipse = !drawEllipse;
+        }
+        else if (key == 'C')
+        {
+            interactCurves = !interactCurves;
         }
 
 

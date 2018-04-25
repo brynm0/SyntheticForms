@@ -31,4 +31,20 @@ public class SynthMath
         return (6 * (t * t * t * t * t) - 15 * t * t * t * t + 10 * t * t * t);
 
     }
+
+    public static float highCentreRemap(float t)
+    {
+        if (t > 1) t = 1;
+        if (t < 0) t = 0;
+        assert (t <= 1 && t >= 0);
+        if (t >= 0.5)
+        {
+            return mix(-2 * (t-1));
+        }
+        else
+        {
+            return mix(2 * t);
+        }
+    }
+
 }

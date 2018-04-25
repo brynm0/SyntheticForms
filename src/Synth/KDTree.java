@@ -289,7 +289,7 @@ public class KDTree
 
     }
 
-    ArrayList<PVector> nearestNInsertValue(PVector point, ArrayList<PVector> list, PVector value)
+    ArrayList<PVector> nearestNInsertValue(PVector point, ArrayList<PVector> list, PVector value, int num)
     {
         if (list.contains(value))
         {
@@ -299,7 +299,13 @@ public class KDTree
         {
             if (point.dist(list.get(i)) < point.dist(value))
             {
+                if (i == list.size() - 1 && list.size() < num)
+                {
+                    list.add(value);
+                }
+
                 return list;
+
             }
             else if (point.dist(list.get(i)) > point.dist(value))
             {
@@ -314,208 +320,188 @@ public class KDTree
         return list;
     }
 
-//    public ArrayList<PVector> nearestNInDirection(PVector point, PVector direction, int num)
-//    {
-//        return nearestNInDirection_r(point, direction, num, new ArrayList<PVector>, 0);
-//    }
+    public ArrayList<PVector> nearestNeighbours(PVector point, int neighbourCount)
+    {
+        return nearestNeighbours_r(point, Float.NaN, new ArrayList<PVector>(), neighbourCount);
+    }
 
-//    private ArrayList<PVector> nearestNInDirection_r(PVector point, PVector direction, int num, ArrayList<PVector> current, int depth)
-//    {
-//        float radius;
-//        if (!current.isEmpty())
-//        {
-//            radius = current.get(current.size() - 1).dist(point);
-//        }
-//        boolean left = false;
-//        boolean right = false;
-//        float EPSILON = 0.00001f;
-//        if (value != null && current.size() == 0 && !value.equals(point) && value.dist(point) < radius)
-//        {
-//            current = nearestNInsertValue(current, value);
-//        }
-//        else if (value != null && !value.equals(point))
-//        {
-//            float dist = value.dist(point);
-//            if (dist < radius && dist > EPSILON)
-//            {
-//                current = nearestNInsertValue(current, value);
-//            }
-//        }
-//        else
-//        {
-//            if (this.depth % 3 == 0)
-//            {
-//                //x
-//                if (point.x <= axisLocation)
-//                {
-//                    //check left
-//                    if (leftChild != null)
-//                    {
-//                        current = leftChild.radiusNeighboursR(point, radius, current);
-//
-//                        left = true;
-//                        numSearches++;
-//                    }
-//                }
-//                else
-//                {
-//                    if (rightChild != null)
-//                    {
-//                        current = rightChild.radiusNeighboursR(point, radius, current);
-//                        right = true;
-//                        numSearches++;
-//                    }
-//
-//                }
-//            }
-//            else if (this.depth % 3 == 1)
-//            {
-//                //y
-//                if (point.y <= axisLocation)
-//                {
-//                    //check left
-//                    if (leftChild != null)
-//                    {
-//                        current = leftChild.radiusNeighboursR(point, radius, current);
-//                        left = true;
-//                        numSearches++;
-//                    }
-//
-//                }
-//                else
-//                {
-//                    if (rightChild != null)
-//                    {
-//                        current = rightChild.radiusNeighboursR(point, radius, current);
-//                        right = true;
-//                        numSearches++;
-//                    }
-//                }
-//
-//            }
-//            else
-//            {
-//                //z
-//                if (point.z <= axisLocation)
-//                {
-//                    //check left
-//                    if (leftChild != null)
-//                    {
-//
-//                        current = leftChild.radiusNeighboursR(point, radius, current);
-//                        left = true;
-//                        numSearches++;
-//
-//                    }
-//                }
-//                else
-//                {
-//                    if (rightChild != null)
-//                    {
-//
-//                        current = rightChild.radiusNeighboursR(point, radius, current);
-//                        right = true;
-//                        numSearches++;
-//                    }
-//                }
-//
-//            }
-//        }
-//
-//        if (!right && left)
-//        {
-//            //Should we check right?
-//            if (depth % 3 == 0)
-//            {
-//                //x
-//                if (new PVector(point.x, 0, 0).dist(new PVector(axisLocation, 0, 0)) < radius)
-//                {
-//                    if (rightChild != null)
-//                    {
-//                        current = rightChild.radiusNeighboursR(point, radius, current);
-//                        numSearches++;
-//                    }
-//
-//                }
-//            }
-//            else if (depth % 3 == 1)
-//            {
-//                //y
-//                if (new PVector(0, point.y, 0).dist(new PVector(0, axisLocation, 0)) < radius)
-//                {
-//                    if (rightChild != null)
-//                    {
-//                        current = rightChild.radiusNeighboursR(point, radius, current);
-//                        numSearches++;
-//                    }
-//
-//                }
-//
-//            }
-//            else
-//            {
-//                if (new PVector(0, 0, point.z).dist(new PVector(0, 0, axisLocation)) < radius)
-//                {
-//                    if (rightChild != null)
-//                    {
-//                        current = rightChild.radiusNeighboursR(point, radius, current);
-//                        numSearches++;
-//                    }
-//
-//                }
-//
-//            }
-//        }
-//        else if (right)
-//        {
-//            //should we check left?
-//            if (depth % 3 == 0)
-//            {
-//                //x
-//                if (new PVector(point.x, 0, 0).dist(new PVector(axisLocation, 0, 0)) < radius)
-//                {
-//                    if (leftChild != null)
-//                    {
-//                        current = leftChild.radiusNeighboursR(point, radius, current);
-//                        numSearches++;
-//                    }
-//
-//                }
-//            }
-//            else if (depth % 3 == 1)
-//            {
-//                //y
-//                if (new PVector(0, point.y, 0).dist(new PVector(0, axisLocation, 0)) < radius)
-//                {
-//                    if (leftChild != null)
-//                    {
-//                        current = leftChild.radiusNeighboursR(point, radius, current);
-//                        numSearches++;
-//                    }
-//
-//                }
-//
-//            }
-//            else
-//            {
-//                if (new PVector(0, 0, point.z).dist(new PVector(0, 0, axisLocation)) < radius)
-//                {
-//                    if (leftChild != null)
-//                    {
-//                        current = leftChild.radiusNeighboursR(point, radius, current);
-//                        numSearches++;
-//                    }
-//                }
-//
-//            }
-//
-//        }
-//        return current;
-//
-//
-//    }
+    private ArrayList<PVector> nearestNeighbours_r(PVector point, float radius, ArrayList<PVector> neighbours, int neighbourCount)
+    {
+        boolean left = false;
+        boolean right = false;
+        float EPSILON = 0.00001f;
+        if (value != null && !value.equals(point) && Float.isNaN(radius) && neighbours.size() == 0)
+        {
+            neighbours.add(value);
+        }
+        else if (value != null && neighbours.size() < neighbourCount && !value.equals(point) && Float.isNaN(radius))
+        {
+            neighbours = nearestNInsertValue(point, neighbours, value, neighbourCount);
+        }
+        else if (value != null && !value.equals(point) && neighbours.size() == neighbourCount - 1 && Float.isNaN(radius))
+        {
+            radius = value.dist(point);
+            neighbours = nearestNInsertValue(point, neighbours, value, neighbourCount);
+        }
+        else if (value != null && !value.equals(point) && neighbours.size() == neighbourCount && !Float.isNaN(radius) && value.dist(point) < radius)
+        {
+            radius = value.dist(point);
+            neighbours = nearestNInsertValue(point, neighbours, value, neighbourCount);
+        }
+        else
+        {
+            if (this.depth % 3 == 0)
+            {
+                //x
+                if (point.x <= axisLocation)
+                {
+                    //check left
+                    if (leftChild != null)
+                    {
+                        neighbours = leftChild.nearestNeighbours_r(point, radius, neighbours, neighbourCount);
+                        left = true;
+                        numSearches++;
+                    }
+                }
+                else
+                {
+                    if (rightChild != null)
+                    {
+                        neighbours = rightChild.nearestNeighbours_r(point, radius, neighbours, neighbourCount);
+                        right = true;
+                        numSearches++;
+                    }
+                }
+            }
+            else if (this.depth % 3 == 1)
+            {
+                //y
+                if (point.y <= axisLocation)
+                {
+                    //check left
+                    if (leftChild != null)
+                    {
+                        neighbours = leftChild.nearestNeighbours_r(point, radius, neighbours, neighbourCount);
+                        left = true;
+                        numSearches++;
+                    }
+                }
+                else
+                {
+                    if (rightChild != null)
+                    {
+                        neighbours = rightChild.nearestNeighbours_r(point, radius, neighbours, neighbourCount);
+                        right = true;
+                        numSearches++;
+                    }
+                }
+            }
+            else
+            {
+                //z
+                if (point.z <= axisLocation)
+                {
+                    //check left
+                    if (leftChild != null)
+                    {
+                        neighbours = leftChild.nearestNeighbours_r(point, radius, neighbours, neighbourCount);
+                        left = true;
+                        numSearches++;
+                    }
+                }
+                else
+                {
+                    if (rightChild != null)
+                    {
 
+                        neighbours = rightChild.nearestNeighbours_r(point, radius, neighbours, neighbourCount);
+                        right = true;
+                        numSearches++;
+                    }
+                }
+            }
+        }
 
+        if (!right && left)
+        {
+            //Should we check right?
+            if (depth % 3 == 0)
+            {
+                //x
+                if (Float.isNaN(radius) || new PVector(point.x, 0, 0).dist(new PVector(axisLocation, 0, 0)) < radius)
+                {
+                    if (rightChild != null)
+                    {
+                        neighbours = rightChild.nearestNeighbours_r(point, radius, neighbours, neighbourCount);
+                        numSearches++;
+                    }
+                }
+            }
+            else if (depth % 3 == 1)
+            {
+                //y
+                if (Float.isNaN(radius) || new PVector(0, point.y, 0).dist(new PVector(0, axisLocation, 0)) < radius)
+                {
+                    if (rightChild != null)
+                    {
+                        neighbours = rightChild.nearestNeighbours_r(point, radius, neighbours, neighbourCount);
+                        numSearches++;
+                    }
+                }
+            }
+            else
+            {
+                if (Float.isNaN(radius) || new PVector(0, 0, point.z).dist(new PVector(0, 0, axisLocation)) < radius)
+                {
+                    if (rightChild != null)
+                    {
+                        neighbours = rightChild.nearestNeighbours_r(point, radius, neighbours, neighbourCount);
+                        numSearches++;
+                    }
+                }
+            }
+        }
+        else if (right)
+        {
+            //should we check left?
+            if (depth % 3 == 0)
+            {
+                //x
+                if (Float.isNaN(radius) || new PVector(point.x, 0, 0).dist(new PVector(axisLocation, 0, 0)) < radius)
+                {
+                    if (leftChild != null)
+                    {
+                        neighbours = leftChild.nearestNeighbours_r(point, radius, neighbours, neighbourCount);
+                        numSearches++;
+                    }
+                }
+            }
+            else if (depth % 3 == 1)
+            {
+                //y
+                if (Float.isNaN(radius) || new PVector(0, point.y, 0).dist(new PVector(0, axisLocation, 0)) < radius)
+                {
+                    if (leftChild != null)
+                    {
+                        neighbours = leftChild.nearestNeighbours_r(point, radius, neighbours, neighbourCount);
+                        numSearches++;
+                    }
+                }
+            }
+            else
+            {
+                if (Float.isNaN(radius) || new PVector(0, 0, point.z).dist(new PVector(0, 0, axisLocation)) < radius)
+                {
+                    if (leftChild != null)
+                    {
+                        neighbours = leftChild.nearestNeighbours_r(point, radius, neighbours, neighbourCount);
+                        numSearches++;
+                    }
+                }
+            }
+        }
+        return neighbours;
+    }
 
     public ArrayList<PVector> radiusNeighbours(PVector point, float radius)
     {

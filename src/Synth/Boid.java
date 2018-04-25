@@ -209,34 +209,37 @@ public class Boid
 
     }
 
+    public void towardHorizontal(float degreesAngle)
+    {
+        float floor = (float) Math.cos(Math.toRadians(degreesAngle));
+        float dot = new PVector(0, 0, 1).dot((velocity.copy().normalize()));
+
+        if (dot < floor)
+        {
+            float t = app.map(dot, -1, floor, 1, 0);
+            PVector scaledTarget = new PVector(0, 1, 1).normalize().mult(velocity.mag());
+            scaledTarget.mult(t);
+            addSteer(scaledTarget);
+        }
+    }
+
+
     public void align(KDTree pointsTree, ArrayList<Boid> boidsList, ArrayList<PVector> positionList)
     {
-        float radius = 260;
-        ArrayList<PVector> neighbours = pointsTree.radiusNeighbours(position, radius);
+        ArrayList<PVector> neighbours = pointsTree.radiusNeighbours(position, sightOuter);
         if (neighbours.size() != 0)
         {
-//            if (Synth.SynthMain.drawnNeighbours)
-//            {
-//                for (PVector neighbour : neighbours)
-//                {
-//                    app.line(position.x, position.y, position.z, neighbour.x, neighbour.y, neighbour.z);
-//                }
-//            }
-
-            //get sum of neighbours pos
+            //get sum of neighbours velocity
             PVector sum = new PVector();
             for (PVector element : neighbours)
             {
                 int index = positionList.indexOf(element);
-
                 sum.add(boidsList.get(index).velocity);
             }
             if (!sum.equals(new PVector()))
             {
                 sum.div(neighbours.size());
-                PVector steer = PVector.sub(sum, velocity);
-
-                addForce(steer);
+                addSteer(sum);
             }
         }
 
@@ -344,11 +347,15 @@ public class Boid
 
     public void integrate()
     {
+        PVector oldvel = velocity.copy();
+        acceleration.limit(maxForce);
         velocity.add(acceleration);
         if (maxVel > 0)
         {
             velocity.limit(maxVel);
         }
+        normal.normalize();
+        normal.add(PVector.sub(velocity, oldvel));
         position.add(velocity);
         acceleration = new PVector();
     }
