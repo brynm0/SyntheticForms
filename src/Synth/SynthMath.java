@@ -5,6 +5,25 @@ import processing.core.PVector;
 
 public class SynthMath
 {
+    static PVector rotate(PVector v, PVector _axis, float angle)
+    {
+        PVector axis = _axis.copy();
+        axis.normalize();
+        PVector vnorm = v.copy();
+        vnorm.normalize();
+        float _parallel = PVector.dot(axis, v);
+        PVector parallel = PVector.mult(axis, _parallel);
+        PVector perp = PVector.sub(parallel, v);
+        PVector Cross = v.cross(axis);
+        PVector result = PVector.add(parallel, PVector.add(PVector.mult(Cross, PApplet.sin(-angle)), PVector.mult(perp, PApplet.cos(-angle))));
+        return result;
+    }
+
+    public static PVector multiply(PVector A, PVector B)
+    {
+        return new PVector(A.x * B.x, A.y * B.y, A.z * B.z);
+    }
+
     public static PVector lerpVector(PVector A, PVector B, float t)
     {
         if (t > 1) t = 1;
@@ -39,7 +58,7 @@ public class SynthMath
         assert (t <= 1 && t >= 0);
         if (t >= 0.5)
         {
-            return mix(-2 * (t-1));
+            return mix(-2 * (t - 1));
         }
         else
         {

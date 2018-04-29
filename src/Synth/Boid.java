@@ -11,6 +11,7 @@ public class Boid
     public PVector velocity;
     public PVector position;
     public PVector normal = new PVector(0, 0, 1);
+    boolean moves = true;
     float sightInner;
     float sightOuter;
     private float mass;
@@ -69,11 +70,34 @@ public class Boid
         addForce(steer);
     }
 
+    public void wander(float weight)
+    {
+        PVector rand = new PVector(app.random(-1, 1), app.random(-1, 1), app.random(0, 1));
+        rand.setMag(maxForce);
+        PVector desired = PVector.add(rand, velocity);
+        addSteer(desired);
+    }
+
+    public void moveInAxis(PVector axis, float weight)
+    {
+        PVector desired = axis.copy();
+        desired.setMag(maxVel);
+        addSteer(desired);
+    }
+
+    public void keepInsideMesh(Mesh m)
+    {
+        if (!m.insideMesh(position, new PVector(1, 0, 0)))
+        {
+            moves = false;
+        }
+    }
+
     public void flowAlongCurve(CurveCollection c, float weight)
     {
         PVector cp = c.curvePointTree.nearestNeighbor(position);
         int[] indices = c.curveIndexTable.get(cp);
-        PVector next = new PVector();
+        PVector next;
         if (c.curves.get(indices[0]).size() != indices[1] + 1)
         {
             next = c.curves.get(indices[0]).get(indices[1] + 1);
@@ -258,7 +282,7 @@ public class Boid
         addForce(steer);
     }
 
-    public void cohesionRepulsion(KDTree pointsTree)
+    public void cohesionRepulsion(KDTree pointsTree, ArrayList<Boid> boids, ArrayList<PVector> population)
     {
         int attractioncount = 0;
         ArrayList<PVector> neighbours = pointsTree.radiusNeighbours(position, this.sightOuter);
@@ -266,7 +290,7 @@ public class Boid
         PVector desiredAttraction = new PVector();
         for (PVector element : neighbours)
         {
-            if (element.dist(position) < this.sightInner)
+            if (element.dist(position) < this.sightInner && population.indexOf(element) != -1 && boids.get(population.indexOf(element)).moves)
             {
                 if (SynthMain.drawNeighbours)
                 {
@@ -278,7 +302,7 @@ public class Boid
                 desired.mult(1 / position.dist(element));
                 desiredRepulsion.add(desired);
             }
-            else
+            else if (population.indexOf(element) != -1 && boids.get(population.indexOf(element)).moves)
             {
                 if (SynthMain.drawNeighbours)
                 {
@@ -308,6 +332,49 @@ public class Boid
         {
             PVector steerAway = PVector.sub(desiredRepulsion, velocity);
             addForce(steerAway);
+        }
+    }
+
+    public void bifurcate(KDTree boidTree, ArrayList<Boid> boids, ArrayList<PVector> prevPop,
+                          ArrayList<ArrayList<PVector>> prevPositions, ArrayList<PVector> prevPositionsFlattened,
+                          ArrayList<PVector> seekAxes, int currentIndex,
+                          ArrayList<Integer> parents)
+    {
+        if (boidTree.nearestNeighbor(position).dist(this.position) > sightOuter * 0.8f && moves) ;
+        {
+            Boid tempBoid = new Boid(mass, position.copy(), maxVel, maxForce, normal.copy(), sightOuter, app);
+            boids.add(tempBoid);
+            prevPop.add(tempBoid.position.copy());
+            ArrayList<PVector> templist = new ArrayList<>();
+            templist.add(this.position.copy());
+            prevPositionsFlattened.add(this.position.copy());
+            prevPositions.add(templist);
+            parents.add(currentIndex);
+            PVector rotateAround = PVector.fromAngle(app.random(PConstants.TWO_PI));
+            float angle = PConstants.PI - app.random(11 * PConstants.PI) / 36;
+            PVector axisToSeek = SynthMath.rotate(seekAxes.get(currentIndex).copy(), rotateAround, angle);
+            if (axisToSeek.z < 0)
+            {
+                axisToSeek = SynthMath.rotate(seekAxes.get(currentIndex).copy(), rotateAround, -angle);
+            }
+            seekAxes.add(axisToSeek);
+        }
+    }
+
+    public void join(KDTree prevPositionTree, ArrayList<ArrayList<PVector>> prevPositions, int index, ArrayList<Integer> parents)
+    {
+        ArrayList<PVector> tmp = new ArrayList<>();
+        tmp.addAll(prevPositions.get(index));
+        int parentIndex = parents.get(index);
+        if (parentIndex != -1)
+        {
+            tmp.addAll(prevPositions.get(parents.get(index)));
+        }
+        PVector nearest = prevPositionTree.nearestNotInList(position, tmp);
+        if (nearest.dist(position) < 0.5)
+        {
+            prevPositions.get(index).add(nearest);
+            moves = false;
         }
     }
 
