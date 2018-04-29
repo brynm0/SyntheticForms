@@ -20,7 +20,7 @@ public class SynthMain extends PApplet
     public static boolean drawNeighbours = false;
     private boolean twistDirection = false;
     private boolean paused = false;
-    private boolean drawMesh = false;
+    private boolean drawMesh = true;
     private boolean drawBoids = true;
     private boolean drawCurves = true;
     //Whether the agents should attract/repel and follow given curves
@@ -34,9 +34,9 @@ public class SynthMain extends PApplet
     private PVector[] population;
     private ArrayList<PVector> normalList;
     private ArrayList<Boid> boids;
-    private int boidCount = 2500;
+    private int boidCount = 5;
     private int frameNum = 0;
-    CurveCollection curves;
+    //CurveCollection curves;
 
     public static void main(String[] args)
     {
@@ -127,12 +127,12 @@ public class SynthMain extends PApplet
         }
         else
         {
-            meshList = Mesh.readMeshes("/home/bryn/BaseMeshes/4.obj", this);
+            meshList = Mesh.readMeshes("/home/bryn/SyntheticForms/1.obj", this);
         }
 
         //CurveCollection is my class for a collection of curves, it includes a few helpful data structures for
         //working with large numbers of curves, probably not necessary for this project.
-        curves = new CurveCollection(curveList, this);
+        //curves = new CurveCollection(curveList, this);
         for (Mesh mesh : meshList)
         {
             //Since a lot of programs export objs with a null, or empty, polygroup, here I'm just setting the
@@ -145,17 +145,17 @@ public class SynthMain extends PApplet
         }
         //Sometimes the mesh is too large for processing to display, due to near/far clipping plane issues
         // https://stackoverflow.com/questions/4590250/what-is-near-clipping-distance-and-far-clipping-distance-in-3d-graphics
-        float scaleFactor = 0.0125f;
+        float scaleFactor = 50;
 
         //I only deal w/ pure triangle meshes
         m = m.convQuadsToTris();
 
         //This moves the centre of the mesh to 0,0,0 - so I don't have to bother with it in Rhino
         PVector translationTarget = m.moveMeshCentreToWorld();
-        curves.move(translationTarget);
+        //curves.move(translationTarget);
         System.out.println(translationTarget);
         m.scale(scaleFactor, new PVector());
-        curves.scale(scaleFactor, new PVector());
+        //curves.scale(scaleFactor, new PVector());
 
         PVector[] points = new PVector[m.vertices.size()];
         for (int i = 0; i < m.vertices.size(); i++)
@@ -228,7 +228,7 @@ public class SynthMain extends PApplet
         }
         if (drawCurves)
         {
-            curves.draw();
+           // curves.draw();
         }
     }
 
@@ -267,8 +267,8 @@ public class SynthMain extends PApplet
                 boids.get(i).followMeshNoiseField(m, meshVertexTree, 0.2f, false);
                 if (interactCurves)
                 {
-                    boids.get(i).flowAlongCurve(curves, 1f);
-                    boids.get(i).attractRepelCurves(curves, 0.2f);
+                    //boids.get(i).flowAlongCurve(curves, 1f);
+                    //boids.get(i).attractRepelCurves(curves, 0.2f);
                 }
                 if (twist)
                 {

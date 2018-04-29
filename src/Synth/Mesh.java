@@ -810,11 +810,14 @@ public class Mesh
             return null;
         }
     }
-//
-//    public PVector raycastMesh(PVector rayOrigin,
+
+//    public boolean raycastMesh(PVector rayOrigin,
 //                               PVector rayVector)
 //    {
+//        for (int i = 0; i < faceVerts.size() / 4; i++)
+//        {
 //
+//        }
 //    }
     private PVector[] lineCP2(PVector A, PVector B, PVector P, PVector normalA, PVector normalB, PVector texA, PVector texB)
     {
