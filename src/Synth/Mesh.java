@@ -386,8 +386,6 @@ public class Mesh
 
     public PVector[] populate(int count, ArrayList<PVector> outNormals)
     {
-
-
         PVector[] out = new PVector[count];
         int currIndex = 0;
         for (int i = 0; i < count; i++)
@@ -477,8 +475,6 @@ public class Mesh
     public PVector[] closestPointOnMesh(PVector point, KDTree vertexTree)
     {
         PVector closestVert = vertexTree.nearestNeighbor(point);
-
-
         //TODO(bryn): Rework this so it's v1, v2 v3 - or closest vert & second closest can change.
         int closestVertIndex = vertices.indexOf(closestVert);
         assert faceVerts.contains(closestVertIndex);
