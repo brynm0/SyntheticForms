@@ -34,7 +34,7 @@ public class SynthMain extends PApplet
     private PVector[] population;
     private ArrayList<PVector> normalList;
     private ArrayList<Boid> boids;
-    private int boidCount = 2500;
+    private int boidCount = 5000;
     private int frameNum = 0;
     CurveCollection curves;
 
@@ -42,7 +42,6 @@ public class SynthMain extends PApplet
     {
         PApplet.main("Synth.SynthMain", args);
     }
-
 
 
     /*
@@ -120,10 +119,10 @@ public class SynthMain extends PApplet
         System.out.println(OS);
         if (OS.equals("Windows 10"))
         {
-            String currentDirectory = "/Users/evilg/Google%20Drive/Architecture/2018/Semester%201/Synthetic%20Forms/Week%208a/Base/1/";
+            String currentDirectory = "/Users/evilg/Google%20Drive/Architecture/2018/Semester%201/Synthetic%20Forms/Week%208b/Base/1/";
             curveList.add(readCrv(currentDirectory + "1.txt"));
             curveList.add(readCrv(currentDirectory + "2.txt"));
-            meshList = Mesh.readMeshes(currentDirectory + "1_rebuild.obj", this);
+            meshList = Mesh.readMeshes(currentDirectory + "1_no_c.obj", this);
         }
         else
         {
@@ -144,14 +143,26 @@ public class SynthMain extends PApplet
             }
         }
         //Sometimes the mesh is too large for processing to display, due to near/far clipping plane issues
+        //This is especially true if the mesh was modeled to scale in rhino
         // https://stackoverflow.com/questions/4590250/what-is-near-clipping-distance-and-far-clipping-distance-in-3d-graphics
-        float scaleFactor = 0.0125f;
+        float scaleFactor = 0.075f;
 
         //I only deal w/ pure triangle meshes
         m = m.convQuadsToTris();
 
         //This moves the centre of the mesh to 0,0,0 - so I don't have to bother with it in Rhino
         PVector translationTarget = m.moveMeshCentreToWorld();
+        try
+        {
+            PrintWriter out = new PrintWriter("translationTarget.txt");
+            out.println(translationTarget.x + ", " + translationTarget.y + ", " + translationTarget.z);
+
+            out.close();
+        } catch (Exception e)
+        {
+            System.out.println("aaaa");
+        }
+
         curves.move(translationTarget);
         System.out.println(translationTarget);
         m.scale(scaleFactor, new PVector());
