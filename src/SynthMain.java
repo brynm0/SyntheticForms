@@ -1,7 +1,11 @@
 import peasy.PeasyCam;
 import processing.core.PApplet;
 import processing.core.PVector;
+
+import javax.imageio.ImageIO;
+import java.awt.image.BufferedImage;
 import java.io.BufferedReader;
+import java.io.File;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.net.URI;
@@ -18,10 +22,12 @@ public class SynthMain extends PApplet
     public float scaleFactor = 0.0001f;
     public int boidCount;
     CurveCollection roads;
+    BufferedImage img;
     private boolean followNoise = false;
     private boolean paused = false;
     private boolean drawCurves = false;
     private boolean reset = false;
+    private boolean attractToMap = true;
     private KDTree boidTree;
     private PeasyCam camera;
     private PVector[] population;
@@ -66,7 +72,8 @@ public class SynthMain extends PApplet
                     outList.add(new PVector(x, y, 0));
                 }
             }
-        } catch (IOException e)
+        }
+        catch (IOException e)
         {
             System.out.println("IOException: " + e);
         }
@@ -87,7 +94,10 @@ public class SynthMain extends PApplet
 
         if (OS.equals("Linux"))
         {
-            population = readPopulationFromFile("/home/bryn/Downloads/houselocationsinitial.txt", this).toArray(new PVector[0]);
+            String housePath = "/home/bryn/ResearchElective/";
+            population = readPopulationFromFile(housePath + "houselocations.txt", this).toArray(new PVector[0]);
+            lateralSep = readFloatArrayFromFile(housePath + "latsep.txt");
+            roadSep = readFloatArrayFromFile(housePath + "roadsep.txt");
         }
         else
         {
@@ -117,11 +127,23 @@ public class SynthMain extends PApplet
         boidCount = population.length;
         if (OS.equals("Linux"))
         {
-            roads = new CurveCollection("/home/bryn/Downloads/1.crv", scaleFactor, this);
+            roads = new CurveCollection("/home/bryn/ResearchElective/1.crv", scaleFactor, this);
         }
         else
         {
             roads = new CurveCollection("/Users/evilg/Google%20Drive/Architecture/2018/Semester%201/Research/txts/1.crv", scaleFactor, this);
+        }
+
+
+        img = null;
+        try
+        {
+            img = ImageIO.read(new File("1.png"));
+
+        }
+        catch (IOException e)
+        {
+            System.out.println(e);
         }
     }
 
@@ -159,7 +181,8 @@ public class SynthMain extends PApplet
             {
                 outList.add(Float.parseFloat(line));
             }
-        } catch (IOException e)
+        }
+        catch (IOException e)
         {
             System.err.format("IOException: %s%n", e);
         }
@@ -187,7 +210,11 @@ public class SynthMain extends PApplet
                 assert boids.get(i).isFrozen == false;
                 if (population.length > 1)
                 {
-                    if (!followNoise)
+                    if (attractToMap)
+                    {
+                        boids.get(i).attractToImage(img);
+                    }
+                    else if (!followNoise)
                     {
                         boids.get(i).flowAlongCurve(roads);
                         boidCount = boids.get(i).attractToCurve(boidCount, roads, boidTree, boids, tempPop, roadSep[i]);
@@ -254,6 +281,10 @@ public class SynthMain extends PApplet
         {
             followNoise = !followNoise;
         }
+        else if (key == 'q')
+        {
+            attractToMap = !attractToMap;
+        }
     }
 
     public void saveBoids()
@@ -312,7 +343,8 @@ public class SynthMain extends PApplet
             }
             outDist.close();
             System.out.println("done");
-        } catch (IOException e)
+        }
+        catch (IOException e)
         {
             System.out.println("Unhandled IO Exception " + e);
         }

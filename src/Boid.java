@@ -2,6 +2,8 @@ import processing.core.PApplet;
 import processing.core.PConstants;
 import processing.core.PVector;
 
+import java.awt.*;
+import java.awt.image.BufferedImage;
 import java.util.ArrayList;
 
 public class Boid
@@ -71,6 +73,27 @@ public class Boid
     {
         if (force.mag() > maxForce && maxForce != -1) force.setMag(maxForce);
         acceleration.add(PVector.div(force, mass));
+    }
+
+    public void attractToImage(BufferedImage img)
+    {
+        int width = img.getWidth();
+        int height = img.getHeight();
+        int runningSum = 0;
+        int randX = (int) app.random(width);
+        int randY = (int) app.random(height);
+        Color col = new Color(img.getRGB(randX, randY));
+        float weight = app.map((255 - col.getRed()), 0, 255, 0, 1);
+        PVector trans = new PVector(1.0078E7f, -708643.210677f);
+
+        float scaleFactor = 62627.2707f;
+        PVector target = new PVector(randX, -randY);
+        target.mult(scaleFactor);
+        target.add(trans);
+        PVector desired = PVector.sub(target, position);
+        desired.setMag(maxVel * weight);
+        PVector steer = PVector.sub(desired, velocity);
+        addForce(steer);
     }
 
     public void flowAlongCurve(CurveCollection crv)
@@ -177,6 +200,7 @@ public class Boid
         }
         return countCurrent;
     }
+
     private void addSteer(PVector desired)
     {
         PVector steer = PVector.sub(desired, velocity);
