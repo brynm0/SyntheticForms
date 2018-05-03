@@ -209,6 +209,15 @@ public class Boid
         addSteer(twist);
     }
 
+    public void repelMesh(Mesh m, KDTree meshVertexTree, float weight)
+    {
+        PVector[] cp = m.closestPointOnMesh(position, meshVertexTree);
+        PVector tempAccel = PVector.sub(position, cp[0]);
+        tempAccel.normalize();
+        tempAccel.mult(weight);
+        acceleration.add(tempAccel);
+    }
+
     public void followMeshNoiseField(Mesh m, KDTree meshVertexTree, float weight, boolean follow)
     {
 

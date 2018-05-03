@@ -83,7 +83,7 @@ public class SynthMain extends PApplet
         }
         else
         {
-            meshList = Mesh.readMeshes("/home/bryn/SyntheticForms/1.obj", this);
+            meshList = Mesh.readMeshes("/home/bryn/Downloads/post124.OBJ", this);
         }
 
         for (Mesh mesh : meshList)
@@ -98,7 +98,7 @@ public class SynthMain extends PApplet
         }
         //Sometimes the mesh is too large for processing to display, due to near/far clipping plane issues
         // https://stackoverflow.com/questions/4590250/what-is-near-clipping-distance-and-far-clipping-distance-in-3d-graphics
-        float scaleFactor = 100;
+        float scaleFactor = 0.1f;
 
         //I only deal w/ pure triangle meshes
         m = m.convQuadsToTris();
@@ -139,6 +139,7 @@ public class SynthMain extends PApplet
         //Creating a new KDTree and searching it each time they move is still faster than brute force searching.
         boidTree = new KDTree(population.toArray(new PVector[population.size()]), 0, this);
         prevPositionTree = new KDTree(prevPositionsFlattened.toArray(new PVector[prevPositionsFlattened.size()]), 0, this);
+        m.popNoise();
     }
 
     public void draw()
@@ -183,15 +184,19 @@ public class SynthMain extends PApplet
                     //boids.get(i).align(boidTree, boids, tempPop);
                     boids.get(i).cohesionRepulsion(boidTree, boids, population);
 
-                    boids.get(i).keepInsideMesh(m);
+                    boids.get(i).repelMesh(m, meshVertexTree, 0.5f);
                     boids.get(i).moveInAxis(seekAxes.get(i), 1);
                     boids.get(i).moveInAxis(new PVector(0,0,1), 0.25f);
-                    //boids.get(i).wander(1);
                     if (random(250) < 1 && bifurcates)
                     {
                         boids.get(i).bifurcate(boidTree, boids, population, prevPositions, prevPositionsFlattened, seekAxes, i, parents);
                     }
                     boids.get(i).join(prevPositionTree, prevPositions, i, parents);
+                    if (!m.insideMesh(boids.get(i).position, new PVector(1, 0, 0)))
+                    {
+                        boids.get(i).moves = false;
+                        paused = true;
+                    }
                 }
             }
             if (boids.get(i).moves)
