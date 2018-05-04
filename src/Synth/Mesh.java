@@ -1,5 +1,6 @@
 package Synth;
 
+import com.sun.istack.internal.Nullable;
 import processing.core.PApplet;
 import processing.core.PConstants;
 import processing.core.PVector;
@@ -388,7 +389,7 @@ public class Mesh
         }
     }
 
-    public PVector[] populate(int count, ArrayList<PVector> outNormals)
+    public PVector[] populate(int count, @Nullable ArrayList<PVector> outNormals)
     {
         PVector[] out = new PVector[count];
         int currIndex = 0;
@@ -449,8 +450,10 @@ public class Mesh
             PVector term3 = PVector.mult(normals.get(normalIndex3), a3);
 
             PVector normalVector = PVector.add(PVector.add(term1, term2), term3);
-            outNormals.add(normalVector);
-
+            if (outNormals != null)
+            {
+                outNormals.add(normalVector);
+            }
         }
         return out;
     }

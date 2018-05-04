@@ -4,8 +4,14 @@ import peasy.PeasyCam;
 import processing.core.PApplet;
 import processing.core.PVector;
 
+import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.PrintWriter;
+import java.net.URI;
+import java.nio.charset.Charset;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
 
@@ -20,21 +26,23 @@ public class SynthMain extends PApplet
     private boolean drawBoids = true;
     //Whether the agents should attract/repel and follow given curves
     private boolean twist = false;
+    boolean bifurcates = true;
     private KDTree meshVertexTree;
     private KDTree boidTree;
     private PeasyCam camera;
     private Mesh m;
     private ArrayList<PVector> population;
     private ArrayList<PVector> normalList;
+    Synth.CurveCollection curveCollection;
     private ArrayList<Boid> boids;
-    private int boidCount = 12;
+    private int boidCount = 50;
     private int frameNum = 0;
-    boolean bifurcates = true;
     KDTree prevPositionTree;
     ArrayList<ArrayList<PVector>> prevPositions;
     ArrayList<PVector> prevPositionsFlattened;
     ArrayList<PVector> seekAxes;
     ArrayList<Integer> parents;
+    int numFrozen = 0;
 
     public static void main(String[] args)
     {
@@ -57,6 +65,32 @@ public class SynthMain extends PApplet
         return indexList;
     }
 
+    public static ArrayList<PVector> readCrv(String absolutePath)
+    {
+        Charset charset = Charset.forName("US-ASCII");
+        String p = "file://" + absolutePath;
+        Path file = Paths.get(URI.create(p));
+
+        System.out.println(file);
+        ArrayList<PVector> outList = new ArrayList<>();
+        try (BufferedReader reader = Files.newBufferedReader(file, charset))
+        {
+
+            String line;
+            while ((line = reader.readLine()) != null)
+            {
+                String[] vector = line.split(" ");
+                PVector tempVec = new PVector(Float.parseFloat(vector[0]), Float.parseFloat(vector[1]), Float.parseFloat(vector[2]));
+                outList.add(tempVec);
+            }
+        } catch (IOException e)
+        {
+            System.out.println("IOException: " + e);
+        }
+        return outList;
+    }
+
+
     /*
      * This method is one that must be used when working with Processing in Intellij
      * Generally only used to declare the size of the window, and the type of renderer being used
@@ -78,8 +112,11 @@ public class SynthMain extends PApplet
         System.out.println(OS);
         if (OS.equals("Windows 10"))
         {
-            String currentDirectory = "/Users/evilg/Google%20Drive/Architecture/2018/Semester%201/Synthetic%20Forms/Week%208a/Base/1/";
-            meshList = Mesh.readMeshes(currentDirectory + "1_rebuild.obj", this);
+            String currentDirectory = "/Users/evilg/Google%20Drive/Architecture/2018/Semester%201/Synthetic%20Forms/Week%209/pre/";
+            ArrayList<ArrayList<PVector>> crvs = new ArrayList<>();
+            crvs.add(readCrv(currentDirectory + "1.txt"));
+            curveCollection = new CurveCollection(crvs, this);
+            meshList = Mesh.readMeshes(currentDirectory + "1.obj", this);
         }
         else
         {
@@ -107,6 +144,8 @@ public class SynthMain extends PApplet
         PVector translationTarget = m.moveMeshCentreToWorld();
         System.out.println(translationTarget);
         m.scale(scaleFactor, new PVector());
+        curveCollection.move(translationTarget);
+        curveCollection.scale(scaleFactor, new PVector());
 
         PVector[] points = new PVector[m.vertices.size()];
         for (int i = 0; i < m.vertices.size(); i++)
@@ -116,7 +155,7 @@ public class SynthMain extends PApplet
         //Creating a KDTree for the vertices of the mesh, to make searching faster
         meshVertexTree = new KDTree(points, 0, this);
 
-        population = new ArrayList<PVector>(Arrays.asList(m.populateDownwardFaces(boidCount)));
+        population = new ArrayList<PVector>(Arrays.asList(m.populate(boidCount, null)));
         //Initializing ALL the boids.
         boids = new ArrayList<>();
         seekAxes = new ArrayList<>();
@@ -131,7 +170,7 @@ public class SynthMain extends PApplet
             temp.add(population.get(i).copy());
             prevPositions.add(temp);
             prevPositionsFlattened.add(population.get(i).copy());
-            seekAxes.add(new PVector(0,0,1));
+            seekAxes.add(new PVector(0, 0, 1));
             parents.add(-1);
         }
 
@@ -181,12 +220,13 @@ public class SynthMain extends PApplet
                     //boids.get(i).towardHorizontal(45);
 
                     //Basic boid behaviours.
-                    //boids.get(i).align(boidTree, boids, tempPop);
+                    boids.get(i).align(boidTree, boids, population);
                     boids.get(i).cohesionRepulsion(boidTree, boids, population);
-
-                    boids.get(i).repelMesh(m, meshVertexTree, 0.5f);
-                    boids.get(i).moveInAxis(seekAxes.get(i), 1);
-                    boids.get(i).moveInAxis(new PVector(0,0,1), 0.25f);
+                    //boids.get(i).attractRepelCurves(curveCollection, 1);
+                    boids.get(i).flowAlongCurve(curveCollection, 1);
+                    boids.get(i).repelMesh(m, meshVertexTree, 0.25f);
+//                    boids.get(i).moveInAxis(seekAxes.get(i), 1);
+//                    boids.get(i).moveInAxis(new PVector(0,0,1), 0.25f);
                     if (random(250) < 1 && bifurcates)
                     {
                         boids.get(i).bifurcate(boidTree, boids, population, prevPositions, prevPositionsFlattened, seekAxes, i, parents);
@@ -194,8 +234,15 @@ public class SynthMain extends PApplet
                     boids.get(i).join(prevPositionTree, prevPositions, i, parents);
                     if (!m.insideMesh(boids.get(i).position, new PVector(1, 0, 0)))
                     {
-                        boids.get(i).moves = false;
-                        paused = true;
+                        if (numFrozen == boids.size() - 1)
+                        {
+                            paused = true;
+                        }
+                        else
+                        {
+                            boids.get(i).moves = false;
+                            numFrozen++;
+                        }
                     }
                 }
             }
@@ -219,8 +266,8 @@ public class SynthMain extends PApplet
         {
             for (int i = 1; i < curve.size(); i++)
             {
-                stroke(0,255,0);
-                line(curve.get(i).x, curve.get(i).y, curve.get(i).z, curve.get(i-1).x, curve.get(i-1).y, curve.get(i-1).z);
+                stroke(0, 255, 0);
+                line(curve.get(i).x, curve.get(i).y, curve.get(i).z, curve.get(i - 1).x, curve.get(i - 1).y, curve.get(i - 1).z);
             }
         }
         for (Boid element : boids)
@@ -295,7 +342,7 @@ public class SynthMain extends PApplet
         {
             System.out.println("writing positions");
             out = new PrintWriter(fileID + "position" + ".txt");
-            for ( ArrayList<PVector> curve : prevPositions)
+            for (ArrayList<PVector> curve : prevPositions)
             {
                 for (int i = 0; i < curve.size(); i++)
                 {
@@ -308,8 +355,7 @@ public class SynthMain extends PApplet
             }
             out.close();
             System.out.println("done");
-        }
-        catch (IOException e)
+        } catch (IOException e)
         {
             System.out.println("Unhandled IO Exception " + e);
         }
