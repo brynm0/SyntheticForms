@@ -13,6 +13,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
+import java.util.Hashtable;
 
 public class Mesh
 {
@@ -291,8 +292,7 @@ public class Mesh
         } catch (IOException e)
         {
             System.out.println("Unhandled IO Exception " + e);
-        }
-        finally
+        } finally
         {
             System.out.println("done");
 
@@ -474,7 +474,8 @@ public class Mesh
         texCoords = outTex;
     }
 
-    public PVector[] closestPointOnMesh(PVector point, KDTree vertexTree)
+
+    public PVector[] followNoiseCP(PVector point, KDTree vertexTree)
     {
         PVector closestVert = vertexTree.nearestNeighbor(point);
         //TODO(bryn): Rework this so it's v1, v2 v3 - or closest vert & second closest can change.
@@ -723,7 +724,7 @@ public class Mesh
         return new PVector[]{closestInterpolatedPoint, closestInterpolatedNormal, closestIntTex};
     }
 
-    private PVector lineIntersectsTriangle(PVector rayOrigin,
+    PVector lineIntersectsTriangle(PVector rayOrigin,
                                            PVector rayVector,
                                            PVector[] inTriangle)
     {
@@ -810,13 +811,14 @@ public class Mesh
             return null;
         }
     }
-//
+
+    //
 //    public PVector raycastMesh(PVector rayOrigin,
 //                               PVector rayVector)
 //    {
 //
 //    }
-    private PVector[] lineCP2(PVector A, PVector B, PVector P, PVector normalA, PVector normalB, PVector texA, PVector texB)
+    PVector[] lineCP2(PVector A, PVector B, PVector P, PVector normalA, PVector normalB, PVector texA, PVector texB)
     {
 //        auto AB = B - A;
         PVector AB = PVector.sub(B, A);
@@ -836,12 +838,27 @@ public class Mesh
         }
         if (t == 0)
         {
-            return new PVector[]{B, normalB, texB};
+            if (texB != null)
+            {
+                return new PVector[]{B, normalB, texB};
+            }
+            else
+            {
+                return new PVector[]{B, normalB, null};
+            }
 
         }
         if (t == 1)
         {
-            return new PVector[]{A, normalA, texA};
+            if (texA != null)
+            {
+                return new PVector[]{A, normalA, texA};
+            }
+            else
+            {
+                return new PVector[]{A, normalA, null};
+            }
+
 
         }
         else
@@ -849,8 +866,15 @@ public class Mesh
             assert t < 1 && t > 0;
             PVector temp = SynthMath.lerpVector(B, A, t);
             PVector tempNormal = SynthMath.lerpVector(normalB, normalA, t);
-            PVector tempTex = SynthMath.lerpVector(texB, texA, t);
-            return new PVector[]{temp, tempNormal, tempTex};
+            if (texA != null && texB != null)
+            {
+                PVector tempTex = SynthMath.lerpVector(texB, texA, t);
+                return new PVector[]{temp, tempNormal, tempTex};
+            }
+            else
+            {
+                return new PVector[]{temp, tempNormal, null};
+            }
         }
     }
 

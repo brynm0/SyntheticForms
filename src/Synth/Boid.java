@@ -188,7 +188,8 @@ public class Boid
     public void followMeshNoiseField(Mesh m, KDTree meshVertexTree, float weight, boolean follow)
     {
 
-        final PVector[] cp = m.closestPointOnMesh(position, meshVertexTree);
+        //TODO(bryn): This is still very slow, perhaps consider attraction to vertices ONLY, rather than CP
+        final PVector[] cp = m.followNoiseCP(position, meshVertexTree);
         this.normal = cp[1].copy();
         //Directly add some acceleration that is in the direction of the target, proportional to the distance
         PVector tempAccel = PVector.sub(cp[0], position);
@@ -207,6 +208,15 @@ public class Boid
         }
 
 
+    }
+    public void attractToMesh(MeshCollection meshCollection, float weight)
+    {
+        final PVector cp = meshCollection.closestPointOnMesh(position);
+        //Directly add some acceleration that is in the direction of the target, proportional to the distance
+        PVector tempAccel = PVector.sub(cp, position);
+        tempAccel.normalize();
+        tempAccel.mult(weight);
+        acceleration.add(tempAccel);
     }
 
     public void towardHorizontal(float degreesAngle)

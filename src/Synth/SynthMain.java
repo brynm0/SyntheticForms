@@ -37,6 +37,8 @@ public class SynthMain extends PApplet
     private int boidCount = 5000;
     private int frameNum = 0;
     CurveCollection curves;
+    MeshCollection meshCollection;
+
 
     public static void main(String[] args)
     {
@@ -119,10 +121,10 @@ public class SynthMain extends PApplet
         System.out.println(OS);
         if (OS.equals("Windows 10"))
         {
-            String currentDirectory = "/Users/evilg/Google%20Drive/Architecture/2018/Semester%201/Synthetic%20Forms/Week%208b/Base/1/";
+            String currentDirectory = "/Users/evilg/Google%20Drive/Architecture/2018/Semester%201/Synthetic%20Forms/Week%2010/pre/";
             curveList.add(readCrv(currentDirectory + "1.txt"));
             curveList.add(readCrv(currentDirectory + "2.txt"));
-            meshList = Mesh.readMeshes(currentDirectory + "1_no_c.obj", this);
+            meshList = Mesh.readMeshes(currentDirectory + "4.obj", this);
         }
         else
         {
@@ -145,7 +147,7 @@ public class SynthMain extends PApplet
         //Sometimes the mesh is too large for processing to display, due to near/far clipping plane issues
         //This is especially true if the mesh was modeled to scale in rhino
         // https://stackoverflow.com/questions/4590250/what-is-near-clipping-distance-and-far-clipping-distance-in-3d-graphics
-        float scaleFactor = 0.075f;
+        float scaleFactor = 0.5f;
 
         //I only deal w/ pure triangle meshes
         m = m.convQuadsToTris();
@@ -193,6 +195,9 @@ public class SynthMain extends PApplet
 
         //I have some perlin noise populated on the mesh for a behaviour in which the boids follow a noisefield on the mesh
         m.popNoise();
+        ArrayList<Mesh> meshes = new ArrayList<>();
+        meshes.add(m);
+        meshCollection = new MeshCollection(meshes, this);
 
         //Creating a KDTree for the boids, this needs to be updated any time they move.
         //Creating a new KDTree and searching it each time they move is still faster than brute force searching.
@@ -275,7 +280,7 @@ public class SynthMain extends PApplet
                 //This method also "sticks" the boids to the base mesh.
                 //There is a  "weight" variable that determines how much they are able to leave the mesh before being
                 //pulled back in
-                boids.get(i).followMeshNoiseField(m, meshVertexTree, 0.2f, false);
+                boids.get(i).attractToMesh(meshCollection, 1);
                 if (interactCurves)
                 {
                     boids.get(i).flowAlongCurve(curves, 1f);
@@ -337,6 +342,15 @@ public class SynthMain extends PApplet
         else if (key == BACKSPACE)
         {
             paused = !paused;
+            if (paused)
+            {
+                System.out.println("Paused");
+            }
+            else
+            {
+                System.out.println("Unpaused");
+            }
+
         }
         else if (key == ENTER)
         {
