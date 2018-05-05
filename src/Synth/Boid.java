@@ -267,7 +267,10 @@ public class Boid
             for (PVector element : neighbours)
             {
                 int index = positionList.indexOf(element);
-                sum.add(boidsList.get(index).velocity);
+                if (index != -1)
+                {
+                    sum.add(boidsList.get(index).velocity);
+                }
             }
             if (!sum.equals(new PVector()))
             {

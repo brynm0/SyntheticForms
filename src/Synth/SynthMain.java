@@ -24,6 +24,7 @@ public class SynthMain extends PApplet
     private boolean paused = false;
     private boolean drawMesh = false;
     private boolean drawBoids = true;
+    boolean followCurves = true;
     //Whether the agents should attract/repel and follow given curves
     private boolean twist = false;
     boolean bifurcates = true;
@@ -35,7 +36,7 @@ public class SynthMain extends PApplet
     private ArrayList<PVector> normalList;
     Synth.CurveCollection curveCollection;
     private ArrayList<Boid> boids;
-    private int boidCount = 50;
+    private int boidCount = 3;
     private int frameNum = 0;
     KDTree prevPositionTree;
     ArrayList<ArrayList<PVector>> prevPositions;
@@ -112,9 +113,10 @@ public class SynthMain extends PApplet
         System.out.println(OS);
         if (OS.equals("Windows 10"))
         {
-            String currentDirectory = "/Users/evilg/Google%20Drive/Architecture/2018/Semester%201/Synthetic%20Forms/Week%209/pre/";
+            String currentDirectory = "/Users/evilg/Google%20Drive/Architecture/2018/Semester%201/Synthetic%20Forms/Week%2010/pre/1/";
             ArrayList<ArrayList<PVector>> crvs = new ArrayList<>();
             crvs.add(readCrv(currentDirectory + "1.txt"));
+            crvs.add(readCrv(currentDirectory + "2.txt"));
             curveCollection = new CurveCollection(crvs, this);
             meshList = Mesh.readMeshes(currentDirectory + "1.obj", this);
         }
@@ -135,7 +137,7 @@ public class SynthMain extends PApplet
         }
         //Sometimes the mesh is too large for processing to display, due to near/far clipping plane issues
         // https://stackoverflow.com/questions/4590250/what-is-near-clipping-distance-and-far-clipping-distance-in-3d-graphics
-        float scaleFactor = 0.1f;
+        float scaleFactor = 0.05f;
 
         //I only deal w/ pure triangle meshes
         m = m.convQuadsToTris();
@@ -155,7 +157,9 @@ public class SynthMain extends PApplet
         //Creating a KDTree for the vertices of the mesh, to make searching faster
         meshVertexTree = new KDTree(points, 0, this);
 
-        population = new ArrayList<PVector>(Arrays.asList(m.populate(boidCount, null)));
+        population = new ArrayList<>();
+        population.add(curveCollection.curves.get(0).get(0).copy());
+        population.add(curveCollection.curves.get(1).get(0).copy());
         //Initializing ALL the boids.
         boids = new ArrayList<>();
         seekAxes = new ArrayList<>();
@@ -164,7 +168,7 @@ public class SynthMain extends PApplet
         for (int i = 0; i < population.size(); i++)
         {
             Boid newboid = new Boid(random(5, 10), population.get(i), random(1, 2),
-                    random(5, 10), new PVector(1, 0, 0), random(345, 350), this);
+                    random(5, 10), new PVector(1, 0, 0), 850, this);
             boids.add(newboid);
             ArrayList<PVector> temp = new ArrayList<>();
             temp.add(population.get(i).copy());
@@ -201,6 +205,7 @@ public class SynthMain extends PApplet
         if (drawBoids)
         {
             boidDraw();
+            curveCollection.draw();
         }
     }
 
@@ -220,29 +225,18 @@ public class SynthMain extends PApplet
                     //boids.get(i).towardHorizontal(45);
 
                     //Basic boid behaviours.
-                    boids.get(i).align(boidTree, boids, population);
                     boids.get(i).cohesionRepulsion(boidTree, boids, population);
-                    //boids.get(i).attractRepelCurves(curveCollection, 1);
-                    boids.get(i).flowAlongCurve(curveCollection, 1);
-                    boids.get(i).repelMesh(m, meshVertexTree, 0.25f);
-//                    boids.get(i).moveInAxis(seekAxes.get(i), 1);
-//                    boids.get(i).moveInAxis(new PVector(0,0,1), 0.25f);
-                    if (random(250) < 1 && bifurcates)
+                    if (followCurves)
+                    {
+                        boids.get(i).attractRepelCurves(curveCollection, 0.20f);
+                        boids.get(i).flowAlongCurve(curveCollection, 1);
+                    }
+                    boids.get(i).followMeshNoiseField(m, meshVertexTree, 0.5f, false);
+                    boids.get(i).moveInAxis(seekAxes.get(i), 0.5f);
+                    boids.get(i).moveInAxis(new PVector(0,0,1), 0.25f);
+                    if (random(125) < 1 && bifurcates)
                     {
                         boids.get(i).bifurcate(boidTree, boids, population, prevPositions, prevPositionsFlattened, seekAxes, i, parents);
-                    }
-                    boids.get(i).join(prevPositionTree, prevPositions, i, parents);
-                    if (!m.insideMesh(boids.get(i).position, new PVector(1, 0, 0)))
-                    {
-                        if (numFrozen == boids.size() - 1)
-                        {
-                            paused = true;
-                        }
-                        else
-                        {
-                            boids.get(i).moves = false;
-                            numFrozen++;
-                        }
                     }
                 }
             }
@@ -330,6 +324,10 @@ public class SynthMain extends PApplet
         else if (key == 'e')
         {
             drawEllipse = !drawEllipse;
+        }
+        else if (key == 'c')
+        {
+            followCurves = !followCurves;
         }
     }
 
