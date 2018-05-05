@@ -17,43 +17,50 @@ import java.util.Arrays;
 
 public class SynthMain extends PApplet
 {
-    public static boolean drawNeighbours = false;
+    static boolean drawNeighbours = false;
     private boolean twistDirection = false;
     private boolean paused = false;
     private boolean drawMesh = false;
     private boolean drawBoids = true;
     private boolean drawCurves = true;
+    private boolean drawEllipse = false;
     //Whether the agents should attract/repel and follow given curves
     private boolean interactCurves = true;
     private boolean twist = false;
-    Boid twistBoid;
+
+    private Boid twistBoid;
+
     private KDTree meshVertexTree;
     private KDTree boidTree;
+
     private PeasyCam camera;
+
     private Mesh m;
+
     private PVector[] population;
+
     private ArrayList<PVector> normalList;
     private ArrayList<Boid> boids;
+
     private int boidCount = 5000;
     private int frameNum = 0;
-    CurveCollection curves;
-    MeshCollection meshCollection;
 
+    private CurveCollection curves;
+    private MeshCollection meshCollection;
 
     public static void main(String[] args)
     {
         PApplet.main("Synth.SynthMain", args);
     }
 
-
     /*
      * returns the index of all occurrences of a specific object in a list.
      * "Object" is the generic base class of all java objects, this will work with any class
      * This is a fairly slow procedure, as it has to run through the whole list every time.
      */
-    public static ArrayList<Integer> indexOfAll(Object obj, ArrayList list)
+    static ArrayList<Integer> indexOfAll(Object obj, ArrayList list)
     {
-        ArrayList<Integer> indexList = new ArrayList<Integer>();
+        ArrayList<Integer> indexList = new ArrayList<>();
         for (int i = 0; i < list.size(); i++)
             if (obj.equals(list.get(i)))
             {
@@ -71,8 +78,7 @@ public class SynthMain extends PApplet
      * 0 53.9 23.7
      * might be a simple 3 point polyline
      */
-
-    public static ArrayList<PVector> readCrv(String absolutePath)
+    private static ArrayList<PVector> readCrv(String absolutePath)
     {
         Charset charset = Charset.forName("US-ASCII");
         String p = "file://" + absolutePath;
@@ -114,7 +120,8 @@ public class SynthMain extends PApplet
         //NOTE(bryn): Declaring a population array for the positions of the Boids
         population = new PVector[boidCount];
         ArrayList<Mesh> meshList;
-
+        float cameraZ = ((height/2.0f) / tan(PI*60.0f/360.0f));
+        perspective(PI/3, width/height, cameraZ/100, cameraZ*100);
         //NOTE(bryn): Since I don't run windows on my machine, I have to do some OS wrangling for different file paths
         //Don't worry about this if you're just using Windows
         String OS = System.getProperty("os.name");
@@ -210,10 +217,11 @@ public class SynthMain extends PApplet
     /*
      * This method initialises or resets the twistBoid
      */
-    public void setTwistBoid()
+    private void setTwistBoid()
     {
         int randIndex = floor(random(m.vertices.size()));
         PVector randVertex = m.vertices.get(randIndex);
+        //TODO(bryn): We can use a HashTable lookup now, no need to be using indexOf()
         int normalIndex = (m.faceVerts.indexOf(randIndex));
         normalIndex = m.faceNormals.get(normalIndex);
         float rand = random(0, 1);
@@ -249,7 +257,7 @@ public class SynthMain extends PApplet
     }
 
 
-    void boidLoop()
+    private void boidLoop()
     {
 
         ArrayList<PVector> tempPop = new ArrayList<>(Arrays.asList(population));
@@ -296,15 +304,10 @@ public class SynthMain extends PApplet
             population[i] = boids.get(i).position;
         }
     }
-
-
-    boolean drawEllipse = false;
-
-
     /*
      *This method goes through the display of the boids.
      */
-    void boidDraw()
+    private void boidDraw()
     {
         for (Boid element : boids)
         {
@@ -350,7 +353,6 @@ public class SynthMain extends PApplet
             {
                 System.out.println("Unpaused");
             }
-
         }
         else if (key == ENTER)
         {
@@ -384,11 +386,9 @@ public class SynthMain extends PApplet
         {
             interactCurves = !interactCurves;
         }
-
-
     }
 
-    public void saveBoids()
+    private void saveBoids()
     {
         long fileID = System.currentTimeMillis();
         assert population.length == normalList.size();
@@ -405,7 +405,6 @@ public class SynthMain extends PApplet
             Plane temp = new Plane(population[i], x, y, z);
             plArray.add(temp);
         }
-
 
         try
         {
@@ -473,7 +472,6 @@ public class SynthMain extends PApplet
 //        popMatrix();
 //        line(position.x, position.y, position.z, cp[0].x, cp[0].y, cp[0].z);
 //    }
-
 
 }
 
