@@ -47,4 +47,9 @@ public class SynthMath
         }
     }
 
+    public static PVector multVec(PVector A, PVector B)
+    {
+        return new PVector(A.x * B.x, A.y * B.y, A.z * B.z);
+    }
+
 }

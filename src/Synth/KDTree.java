@@ -311,7 +311,7 @@ public class KDTree
             {
                 if (i != list.size() - 1)
                 {
-                    PVector copy = list.get(i).copy();
+                    PVector copy = list.get(i);
                     list.set(i+1, copy);
                 }
                 list.set(i, value);

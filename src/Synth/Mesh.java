@@ -204,7 +204,8 @@ public class Mesh
                     }
                 }
             }
-        } catch (IOException e)
+        }
+        catch (IOException e)
         {
             System.err.format("IOException: %s%n", e);
         }
@@ -218,86 +219,6 @@ public class Mesh
         }
 
         return outputMeshList;
-    }
-
-    public static void writeObj(ArrayList<Mesh> meshes)
-    {
-        long fileID = System.currentTimeMillis();
-        System.out.println("Working on saving obj");
-        try
-        {
-            PrintWriter p = new PrintWriter(fileID + "out.obj");
-            p.println("# Synth.Mesh produced by custom script");
-            p.println("# Bryn Murrell 2018");
-
-
-            //Loop through group
-            int runningTotalSize = 0;
-            for (int meshIndex = 0; meshIndex < meshes.size(); meshIndex++)
-            {
-                if (meshes.get(meshIndex).faceVerts.size() != 0)
-                {
-                    Mesh curr = meshes.get(meshIndex);
-
-                    p.println("g object_" + meshIndex);
-                    for (PVector v : curr.vertices)
-                    {
-                        p.println("v " + v.x + " " + v.y + " " + v.z);
-                    }
-                    for (PVector vt : curr.texCoords)
-                    {
-                        p.println("vt " + vt.x + " " + vt.y + " " + vt.z);
-                    }
-                    for (PVector vn : curr.normals)
-                    {
-                        p.println("vn " + vn.x + " " + vn.y + " " + vn.z);
-                    }
-                    curr.countFaces();
-                    //TODO(bryn): Fill out printwriting for quadmeshes & trimeshes
-                    //could be a pure quad mesh or a mix of quads and tris
-                    //will probably be the latter, so need to account for that
-                    String currface = "";
-
-                    for (int i = 0; i < curr.faceVerts.size(); i++)
-                    {
-
-                        if (i == 0)
-                        {
-                            currface = "";
-                            //start of face, insert f
-                            currface += "f ";
-                        }
-                        else if (curr.faceVerts.get(i) == -1)
-                        {
-                            p.println(currface);
-                            currface = "";
-                            //start of face, insert f
-                            currface += "f ";
-                            continue;
-                        }
-                        currface += (curr.faceVerts.get(i) + 1 + runningTotalSize);
-                        currface += "/";
-                        if (curr.faceTexCoords.get(i) != -1)
-                        {
-                            currface += (1 + curr.faceTexCoords.get(i) + runningTotalSize);
-                        }
-                        currface += "/";
-                        currface += (1 + curr.faceNormals.get(i) + runningTotalSize);
-                        currface += " ";
-                    }
-                    runningTotalSize += meshes.get(meshIndex).vertices.size();
-                }
-            }
-            p.close();
-        } catch (IOException e)
-        {
-            System.out.println("Unhandled IO Exception " + e);
-        } finally
-        {
-            System.out.println("done");
-
-        }
-
     }
 
     void countFaces()
@@ -321,8 +242,26 @@ public class Mesh
         {
             out.vertices.set(i, SynthMath.lerpVector(A.vertices.get(i), B.vertices.get(i), t));
             out.normals.set(i, SynthMath.lerpVector(A.normals.get(i), B.normals.get(i), t));
-            out.texCoords.set(i, SynthMath.lerpVector(A.texCoords.get(i), B.normals.get(i), t));
+//            out.texCoords.set(i, SynthMath.lerpVector(A.texCoords.get(i), B.normals.get(i), t));
         }
+        return out;
+    }
+
+    public static Mesh orientMeshOnPlane(Plane p, Mesh m)
+    {
+        Mesh out = new Mesh(m);
+        for (int i = 0; i < out.vertices.size(); i++)
+        {
+            PVector newVert = out.vertices.get(i);
+
+            PVector x = PVector.mult(p.x, newVert.x);
+            PVector y = PVector.mult(p.y, newVert.y);
+            PVector z = PVector.mult(p.z, newVert.z);
+            newVert = PVector.add(x, PVector.add(y, z));
+            newVert.add(p.origin);
+            out.vertices.set(i, newVert);
+        }
+
         return out;
     }
 
@@ -352,6 +291,16 @@ public class Mesh
             vertex.add(transform);
         }
         return transform;
+    }
+
+    public Mesh moveMesh(PVector vec)
+    {
+        Mesh outMesh = new Mesh(this);
+        for (PVector vertex : outMesh.vertices)
+        {
+            vertex.add(vec);
+        }
+        return outMesh;
     }
 
 
@@ -725,8 +674,8 @@ public class Mesh
     }
 
     PVector lineIntersectsTriangle(PVector rayOrigin,
-                                           PVector rayVector,
-                                           PVector[] inTriangle)
+                                   PVector rayVector,
+                                   PVector[] inTriangle)
     {
         float EPSILON = 0.0000001f;
         PVector vertex0 = inTriangle[0];

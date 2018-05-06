@@ -2,6 +2,7 @@ package Synth;
 
 import peasy.PeasyCam;
 import processing.core.PApplet;
+import processing.core.PShape;
 import processing.core.PVector;
 
 import java.io.BufferedReader;
@@ -14,6 +15,7 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
 
 public class SynthMain extends PApplet
 {
@@ -27,22 +29,23 @@ public class SynthMain extends PApplet
     //Whether the agents should attract/repel and follow given curves
     private boolean interactCurves = true;
     private boolean twist = false;
+    private long fileID;
+    float scaleFactor;
+
 
     private Boid twistBoid;
 
     private KDTree meshVertexTree;
-    private KDTree boidTree;
-
-    private PeasyCam camera;
-
     private Mesh m;
+    Mesh componentA, componentB;
 
     private PVector[] population;
-
     private ArrayList<PVector> normalList;
+    private KDTree boidTree;
+    private HashMap<PVector, Integer> boidMap;
     private ArrayList<Boid> boids;
 
-    private int boidCount = 5000;
+    private int boidCount = 15000;
     private int frameNum = 0;
 
     private CurveCollection curves;
@@ -62,10 +65,12 @@ public class SynthMain extends PApplet
     {
         ArrayList<Integer> indexList = new ArrayList<>();
         for (int i = 0; i < list.size(); i++)
+        {
             if (obj.equals(list.get(i)))
             {
                 indexList.add(i);
             }
+        }
         return indexList;
     }
 
@@ -96,7 +101,8 @@ public class SynthMain extends PApplet
                 PVector tempVec = new PVector(Float.parseFloat(vector[0]), Float.parseFloat(vector[1]), Float.parseFloat(vector[2]));
                 outList.add(tempVec);
             }
-        } catch (IOException e)
+        }
+        catch (IOException e)
         {
             System.out.println("IOException: " + e);
         }
@@ -114,24 +120,25 @@ public class SynthMain extends PApplet
 
     public void setup()
     {
-        camera = new PeasyCam(this, 500);
+        fileID = System.currentTimeMillis();
+        PeasyCam camera = new PeasyCam(this, 500);
         ArrayList<ArrayList<PVector>> curveList = new ArrayList<>();
 
         //NOTE(bryn): Declaring a population array for the positions of the Boids
         population = new PVector[boidCount];
         ArrayList<Mesh> meshList;
-        float cameraZ = ((height/2.0f) / tan(PI*60.0f/360.0f));
-        perspective(PI/3, width/height, cameraZ/100, cameraZ*100);
+        float cameraZ = ((height / 2.0f) / tan(PI * 60.0f / 360.0f));
+        perspective(PI / 3, width / height, cameraZ / 100, cameraZ * 100);
         //NOTE(bryn): Since I don't run windows on my machine, I have to do some OS wrangling for different file paths
         //Don't worry about this if you're just using Windows
         String OS = System.getProperty("os.name");
         System.out.println(OS);
         if (OS.equals("Windows 10"))
         {
-            String currentDirectory = "/Users/evilg/Google%20Drive/Architecture/2018/Semester%201/Synthetic%20Forms/Week%2010/pre/";
+            String currentDirectory = args[0];
             curveList.add(readCrv(currentDirectory + "1.txt"));
             curveList.add(readCrv(currentDirectory + "2.txt"));
-            meshList = Mesh.readMeshes(currentDirectory + "4.obj", this);
+            meshList = Mesh.readMeshes(currentDirectory + "chunkbase.obj", this);
         }
         else
         {
@@ -154,7 +161,7 @@ public class SynthMain extends PApplet
         //Sometimes the mesh is too large for processing to display, due to near/far clipping plane issues
         //This is especially true if the mesh was modeled to scale in rhino
         // https://stackoverflow.com/questions/4590250/what-is-near-clipping-distance-and-far-clipping-distance-in-3d-graphics
-        float scaleFactor = 0.5f;
+        scaleFactor = 0.5f;
 
         //I only deal w/ pure triangle meshes
         m = m.convQuadsToTris();
@@ -163,17 +170,19 @@ public class SynthMain extends PApplet
         PVector translationTarget = m.moveMeshCentreToWorld();
         try
         {
-            PrintWriter out = new PrintWriter("translationTarget.txt");
+            PrintWriter out = new PrintWriter(fileID + "translationTarget.txt");
             out.println(translationTarget.x + ", " + translationTarget.y + ", " + translationTarget.z);
-
             out.close();
-        } catch (Exception e)
+            out = new PrintWriter(fileID + "scaleFactor.txt");
+            out.println(1 / scaleFactor);
+            out.close();
+        }
+        catch (Exception e)
         {
             System.out.println("aaaa");
         }
 
         curves.move(translationTarget);
-        System.out.println(translationTarget);
         m.scale(scaleFactor, new PVector());
         curves.scale(scaleFactor, new PVector());
 
@@ -192,12 +201,14 @@ public class SynthMain extends PApplet
 
         //Initializing ALL the boids.
         boids = new ArrayList<>();
+        boidMap = new HashMap<>();
         for (int i = 0; i < population.length; i++)
         {
 
             Boid newboid = new Boid(random(5, 10), population[i], random(1, 6),
                     random(1, 6), normalList.get(i), random(50, 150), this);
             boids.add(newboid);
+            boidMap.put(boids.get(i).position, i);
         }
 
         //I have some perlin noise populated on the mesh for a behaviour in which the boids follow a noisefield on the mesh
@@ -224,7 +235,6 @@ public class SynthMain extends PApplet
         //TODO(bryn): We can use a HashTable lookup now, no need to be using indexOf()
         int normalIndex = (m.faceVerts.indexOf(randIndex));
         normalIndex = m.faceNormals.get(normalIndex);
-        float rand = random(0, 1);
         PVector randNormal = m.normals.get(normalIndex).copy();
         if (random(1) < 0.5)
         {
@@ -259,10 +269,7 @@ public class SynthMain extends PApplet
 
     private void boidLoop()
     {
-
         ArrayList<PVector> tempPop = new ArrayList<>(Arrays.asList(population));
-        boidTree = new KDTree(population, 0, this);
-
         //The twistBoid "wanders" on the mesh, following its noise field
         twistBoid.followMeshNoiseField(m, meshVertexTree, 1, true);
         //"integration" simply means updating the velocity with the boid's acceleration, then updating its position with
@@ -276,13 +283,14 @@ public class SynthMain extends PApplet
         //Solving behaviours for ALL the boids
         for (int i = 0; i < boids.size(); i++)
         {
+
             if (population.length > 1)
             {
                 //This commented out method was an attempt at a draft angle behaviour.
                 //boids.get(i).towardHorizontal(45);
 
                 //Basic boid behaviours.
-                boids.get(i).align(boidTree, boids, tempPop);
+                boids.get(i).align(boidTree, boids, population, boidMap);
                 boids.get(i).cohesionRepulsion(boidTree);
 
                 //This method also "sticks" the boids to the base mesh.
@@ -299,11 +307,14 @@ public class SynthMain extends PApplet
                     boids.get(i).twist(new Plane(twistBoid.position.copy(), twistBoid.normal.copy()), twistDirection);
                 }
             }
+            boidMap.remove(boids.get(i).position);
             boids.get(i).integrate();
+            boidMap.put(boids.get(i).position, i);
+
             //Updating the position array with the new positions of the boids
-            population[i] = boids.get(i).position;
         }
     }
+
     /*
      *This method goes through the display of the boids.
      */
@@ -357,6 +368,7 @@ public class SynthMain extends PApplet
         else if (key == ENTER)
         {
             saveBoids();
+//            saveMeshes();
         }
         else if (key == 'u')
         {
@@ -390,21 +402,10 @@ public class SynthMain extends PApplet
 
     private void saveBoids()
     {
-        long fileID = System.currentTimeMillis();
         assert population.length == normalList.size();
         assert normalList.size() == boids.size();
-        ArrayList<Plane> plArray = new ArrayList<>();
+        ArrayList<Plane> plArray = planeListFromBoidList(boids);
         PrintWriter out, outX, outY, outZ;
-        for (int i = 0; i < boids.size(); i++)
-        {
-            PVector x = new PVector();
-            boids.get(i).velocity.normalize(x);
-            PVector z = new PVector();
-            boids.get(i).normal.normalize(z);
-            PVector y = x.cross(z).mult(-1);
-            Plane temp = new Plane(population[i], x, y, z);
-            plArray.add(temp);
-        }
 
         try
         {
@@ -448,30 +449,96 @@ public class SynthMain extends PApplet
             outDist.close();
             System.out.println("done");
 
-        } catch (IOException e)
+        }
+        catch (IOException e)
         {
             System.out.println("Unhandled IO Exception " + e);
         }
     }
 
-//    void meshCPDebug()
-//    {
-//        PVector position = new PVector(x, y, z);
-//        PVector[] cp = m.closestPointOnMesh(position, meshVertexTree);
-//
-//        pushMatrix();
-//        translate(position.x, position.y, position.z);
-//        fill(255, 0, 0);
-//        ellipse(0, 0, 25, 25);
-//        popMatrix();
-//
-//        pushMatrix();
-//        translate(cp[0].x, cp[0].y, cp[0].z);
-//        fill(0, 255, 0);
-//        ellipse(0, 0, 25, 25);
-//        popMatrix();
-//        line(position.x, position.y, position.z, cp[0].x, cp[0].y, cp[0].z);
-//    }
+    private void saveMeshes()
+    {
+        ArrayList<Plane> plArray = planeListFromBoidList(boids);
+        long fileID = System.currentTimeMillis();
+        System.out.println("Working on saving obj");
+        try
+        {
+            PrintWriter p = new PrintWriter(fileID + "out.obj");
+            p.println("# Mesh produced by custom script");
+            p.println("# Bryn Murrell 2018");
 
+            Mesh outMesh = null;
+            //Loop through group
+            for (int i = 0; i < boids.size(); i++)
+            {
+                if (i % 2500 == 0 && i != 0)
+                {
+                    p.close();
+                    fileID = System.currentTimeMillis();
+                    System.out.println(i + "/" + boids.size());
+                    p = new PrintWriter(fileID + "out.obj");
+                    p.println("# Mesh produced by custom script");
+                    p.println("# Bryn Murrell 2018");
+                }
+                float t = new PVector(1, 0, 0).dot(boids.get(i).normal);
+                t = map(t, -1, 1, 0, 1);
+                outMesh = Mesh.tween2Meshes(componentA, componentB, t);
+                outMesh.moveMeshCentreToWorld();
+                //outMesh.scale(1 / scaleFactor, new PVector());
+                outMesh = Mesh.orientMeshOnPlane(plArray.get(i), outMesh);
+                p.println("o object_" + i);
+                for (PVector vert : outMesh.vertices)
+                {
+                    p.println("v " + vert.x + " " + vert.y + " " + vert.z + " ");
+                }
+                for (PVector norm : outMesh.normals)
+                {
+                    p.println("vn " + norm.x + " " + norm.y + " " + norm.z + " ");
+                }
+                for (int j = 0; j < outMesh.faceVerts.size() / 4; j++)
+                {
+                    int currentIndex = 4 * j;
+                    String s = "f ";
+                    s += (1 + (outMesh.faceVerts.get(currentIndex))     + (i * outMesh.vertices.size())) + "//" + (1 + (outMesh.faceNormals.get(currentIndex))     + (i * outMesh.vertices.size())) + " ";
+                    s += (1 + (outMesh.faceVerts.get(currentIndex + 1)) + (i * outMesh.vertices.size())) + "//" + (1 + (outMesh.faceNormals.get(currentIndex + 1)) + (i * outMesh.vertices.size())) + " ";
+                    s += (1 + (outMesh.faceVerts.get(currentIndex + 2)) + (i * outMesh.vertices.size())) + "//" + (1 + (outMesh.faceNormals.get(currentIndex + 2)) + (i * outMesh.vertices.size())) + " ";
+                    p.println(s);
+                }
+            }
+            p.close();
+
+        }
+
+        catch (IOException e)
+        {
+            System.out.println("Unhandled IO Exception " + e);
+        }
+        finally
+        {
+            System.out.println("done");
+
+        }
+
+
+    }
+
+    private ArrayList<Plane> planeListFromBoidList(ArrayList<Boid> boids)
+    {
+        ArrayList<Plane> plArray = new ArrayList<>();
+
+        for (int i = 0; i < boids.size(); i++)
+        {
+            if (boids.get(i).velocity.mag() == 0)
+            {
+                boids.get(i).velocity = new PVector(1,0,0);
+            }
+            PVector x = boids.get(i).velocity.normalize().copy();
+            PVector z = boids.get(i).normal.normalize().copy();
+            PVector y = x.cross(z).mult(-1);
+            Plane temp = new Plane(boids.get(i).position.copy(), x, y, z);
+            plArray.add(temp);
+        }
+        return plArray;
+    }
 }
 

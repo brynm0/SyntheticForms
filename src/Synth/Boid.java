@@ -5,6 +5,7 @@ import processing.core.PConstants;
 import processing.core.PVector;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 
 public class Boid
 {
@@ -233,8 +234,7 @@ public class Boid
         }
     }
 
-
-    public void align(KDTree pointsTree, ArrayList<Boid> boidsList, ArrayList<PVector> positionList)
+    public void align(KDTree pointsTree, ArrayList<Boid> boidsList, PVector[] population, HashMap<PVector, Integer> boidMap)
     {
         ArrayList<PVector> neighbours = pointsTree.radiusNeighbours(position, sightOuter);
         if (neighbours.size() != 0)
@@ -243,7 +243,7 @@ public class Boid
             PVector sum = new PVector();
             for (PVector element : neighbours)
             {
-                int index = positionList.indexOf(element);
+                int index = boidMap.get(element);
                 sum.add(boidsList.get(index).velocity);
             }
             if (!sum.equals(new PVector()))
