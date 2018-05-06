@@ -2,7 +2,6 @@ package Synth;
 
 import peasy.PeasyCam;
 import processing.core.PApplet;
-import processing.core.PShape;
 import processing.core.PVector;
 
 import java.io.BufferedReader;
@@ -30,14 +29,14 @@ public class SynthMain extends PApplet
     private boolean interactCurves = true;
     private boolean twist = false;
     private long fileID;
-    float scaleFactor;
+    private float scaleFactor;
 
 
     private Boid twistBoid;
 
     private KDTree meshVertexTree;
     private Mesh m;
-    Mesh componentA, componentB;
+    private  Mesh componentA, componentB;
 
     private PVector[] population;
     private ArrayList<PVector> normalList;
@@ -269,7 +268,6 @@ public class SynthMain extends PApplet
 
     private void boidLoop()
     {
-        ArrayList<PVector> tempPop = new ArrayList<>(Arrays.asList(population));
         //The twistBoid "wanders" on the mesh, following its noise field
         twistBoid.followMeshNoiseField(m, meshVertexTree, 1, true);
         //"integration" simply means updating the velocity with the boid's acceleration, then updating its position with
@@ -467,7 +465,7 @@ public class SynthMain extends PApplet
             p.println("# Mesh produced by custom script");
             p.println("# Bryn Murrell 2018");
 
-            Mesh outMesh = null;
+            Mesh outMesh;
             //Loop through group
             for (int i = 0; i < boids.size(); i++)
             {
@@ -526,16 +524,16 @@ public class SynthMain extends PApplet
     {
         ArrayList<Plane> plArray = new ArrayList<>();
 
-        for (int i = 0; i < boids.size(); i++)
+        for (Boid element : boids)
         {
-            if (boids.get(i).velocity.mag() == 0)
+            if (element.velocity.mag() == 0)
             {
-                boids.get(i).velocity = new PVector(1,0,0);
+                element.velocity = new PVector(1,0,0);
             }
-            PVector x = boids.get(i).velocity.normalize().copy();
-            PVector z = boids.get(i).normal.normalize().copy();
+            PVector x = element.velocity.normalize().copy();
+            PVector z = element.normal.normalize().copy();
             PVector y = x.cross(z).mult(-1);
-            Plane temp = new Plane(boids.get(i).position.copy(), x, y, z);
+            Plane temp = new Plane(element.position.copy(), x, y, z);
             plArray.add(temp);
         }
         return plArray;
