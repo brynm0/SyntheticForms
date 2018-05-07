@@ -44,7 +44,7 @@ public class SynthMain extends PApplet
     private HashMap<PVector, Integer> boidMap;
     private ArrayList<Boid> boids;
 
-    private int boidCount = 15000;
+    private int boidCount;
     private int frameNum = 0;
 
     private CurveCollection curves;
@@ -119,6 +119,7 @@ public class SynthMain extends PApplet
 
     public void setup()
     {
+        boidCount = Integer.parseInt(args[2]);
         fileID = System.currentTimeMillis();
         PeasyCam camera = new PeasyCam(this, 500);
         ArrayList<ArrayList<PVector>> curveList = new ArrayList<>();
@@ -137,7 +138,7 @@ public class SynthMain extends PApplet
             String currentDirectory = args[0];
             curveList.add(readCrv(currentDirectory + "1.txt"));
             curveList.add(readCrv(currentDirectory + "2.txt"));
-            meshList = Mesh.readMeshes(currentDirectory + "chunkbase.obj", this);
+            meshList = Mesh.readMeshes(currentDirectory + "1.obj", this);
         }
         else
         {
@@ -160,7 +161,7 @@ public class SynthMain extends PApplet
         //Sometimes the mesh is too large for processing to display, due to near/far clipping plane issues
         //This is especially true if the mesh was modeled to scale in rhino
         // https://stackoverflow.com/questions/4590250/what-is-near-clipping-distance-and-far-clipping-distance-in-3d-graphics
-        scaleFactor = 0.5f;
+        scaleFactor = Float.parseFloat(args[1]);
 
         //I only deal w/ pure triangle meshes
         m = m.convQuadsToTris();
@@ -178,7 +179,7 @@ public class SynthMain extends PApplet
         }
         catch (Exception e)
         {
-            System.out.println("aaaa");
+            System.out.println("Failed to save scaleFactor & translationTarget files");
         }
 
         curves.move(translationTarget);
