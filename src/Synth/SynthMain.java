@@ -134,10 +134,10 @@ public class SynthMain extends PApplet
         System.out.println(OS);
         if (OS.equals("Windows 10"))
         {
-            String currentDirectory = args[0];
+            String currentDirectory = "/Users/evilg/Google%20Drive/Architecture/2018/Semester%201/Synthetic%20Forms/Week%2010/pre3/";
             curveList.add(readCrv(currentDirectory + "1.txt"));
             curveList.add(readCrv(currentDirectory + "2.txt"));
-            meshList = Mesh.readMeshes(currentDirectory + "chunkbase.obj", this);
+            meshList = Mesh.readMeshes(currentDirectory + "1.obj", this);
         }
         else
         {
