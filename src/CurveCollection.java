@@ -209,8 +209,8 @@ public class CurveCollection
         float lengthSqAB = AB.magSq();
 //        float t = (AP.x * AB.x + AP.y * AB.y) / lengthSqrAB;
         float t = (AP.dot(AB)) / lengthSqAB;
-        if (t > 1) t = 1;
-        if (t < 0) t = 0;
+        if (t > 1) {t = 1;}
+        else if (t < 0) {t = 0;}
         if (t == 0)
         {
             return A;
@@ -223,7 +223,7 @@ public class CurveCollection
         }
         else
         {
-            assert t < 1 && t > 0;
+            assert t <= 1 && t >= 0;
             PVector temp = SynthMath.lerpVector(B, A, t);
             return temp;
         }

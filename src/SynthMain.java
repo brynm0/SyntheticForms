@@ -3,6 +3,7 @@ import processing.core.PApplet;
 import processing.core.PVector;
 
 import javax.imageio.ImageIO;
+import java.awt.*;
 import java.awt.image.BufferedImage;
 import java.io.BufferedReader;
 import java.io.File;
@@ -23,6 +24,7 @@ public class SynthMain extends PApplet
     public int boidCount;
     CurveCollection roads;
     BufferedImage img;
+    ArrayList<PVector> attractionLocations;
     private boolean followNoise = false;
     private boolean paused = false;
     private boolean drawCurves = false;
@@ -98,6 +100,7 @@ public class SynthMain extends PApplet
             population = readPopulationFromFile(housePath + "houselocations.txt", this).toArray(new PVector[0]);
             lateralSep = readFloatArrayFromFile(housePath + "latsep.txt");
             roadSep = readFloatArrayFromFile(housePath + "roadsep.txt");
+            attractionLocations = readPopulationFromFile(housePath + "attractiontargets.txt", this);
         }
         else
         {
@@ -111,6 +114,7 @@ public class SynthMain extends PApplet
             population[i].mult(scaleFactor);
             lateralSep[i] *= scaleFactor;
             roadSep[i] *= scaleFactor;
+            attractionLocations.get(i).mult(scaleFactor);
         }
         boids = new ArrayList<>();
         for (int i = 0; i < population.length; i++)
@@ -122,9 +126,9 @@ public class SynthMain extends PApplet
             }
             offset *= scaleFactor;
             boids.add(new Boid(1, population[i], 0.75f, 0.1f, new PVector(0, 0, 1),
-                    75000 * scaleFactor, offset + lateralSep[i], this));
+                    random(115000, 150000)* scaleFactor, offset + lateralSep[i], this));
         }
-        boidCount = population.length;
+        boidCount = boids.size();
         if (OS.equals("Linux"))
         {
             roads = new CurveCollection("/home/bryn/ResearchElective/1.crv", scaleFactor, this);
@@ -143,15 +147,69 @@ public class SynthMain extends PApplet
         }
         catch (IOException e)
         {
-            System.out.println(e);
+            System.out.println("Image file failed to load" + e);
         }
+//        attractionLocations = new ArrayList<>();
+//        System.out.println("Generating attractions");
+//        PrintWriter out;
+//        try
+//        {
+//            out = new PrintWriter("attractiontargets.txt");
+//            for (Boid b : boids)
+//            {
+//                PVector temp = (generateAttractionLocation(img));
+//                out.println(temp.x + " " + temp.y + " " + temp.z);
+//
+//            }
+//            out.close();
+//
+//        }
+//        catch (IOException e)
+//        {
+//            System.out.println("Unhandled IO Exception " + e);
+//        }
+//
+//        System.out.println("Done!");
+//        paused = true;
     }
 
+
+    public PVector generateAttractionLocation(BufferedImage image)
+    {
+        float randomTarget = random(115329.46f);
+        float runningCounter = 0;
+        for (int i = 0; i < image.getWidth(); i++)
+        {
+            for (int j = 0; j < image.getHeight(); j++)
+            {
+                Color col = new Color(img.getRGB(i, j));
+                float val = map(255 - col.getRed(), 0, 255, 0, 1);
+                runningCounter += val;
+                if (runningCounter > randomTarget)
+                {
+                    PVector target = new PVector(i, j);
+                    PVector trans = new PVector(8.0974E6f, -842101.947f);
+                    float newScaleFactor = 13323.6957f;
+                    target.mult(newScaleFactor);
+                    target.add(trans);
+                    return target;
+                }
+            }
+        }
+        return null;
+    }
 
     public void draw()
     {
         frameNum++;
         background(255);
+        strokeWeight(1);
+        stroke(255, 0, 0);
+        line(0, 0, 0, 150, 0, 0);
+        stroke(0, 255, 0);
+        line(0, 0, 0, 0, 150, 0);
+
+
         if (!paused)
         {
             boidLoop();
@@ -198,26 +256,28 @@ public class SynthMain extends PApplet
 
     void boidLoop()
     {
-
-        ArrayList<PVector> tempPop = new ArrayList<>(Arrays.asList(population));
         boidTree = new KDTree(population, 0, this);
-
-
+        ArrayList<PVector> tempPop = new ArrayList<>(Arrays.asList(population));
         for (int i = 0; i < boids.size(); i++)
         {
             if (!boids.get(i).isFrozen)
             {
-                assert boids.get(i).isFrozen == false;
                 if (population.length > 1)
                 {
                     if (attractToMap)
                     {
-                        boids.get(i).attractToImage(img);
+                        PVector p = new PVector(attractionLocations.get(i).x, -attractionLocations.get(i).y);
+                        boids.get(i).seek(p, 200);
+                        pushMatrix();
+                        translate(p.x, p.y);
+                        ellipse(0, 0, 5, 5);
+                        popMatrix();
                     }
                     else if (!followNoise)
                     {
                         boids.get(i).flowAlongCurve(roads);
                         boidCount = boids.get(i).attractToCurve(boidCount, roads, boidTree, boids, tempPop, roadSep[i]);
+                        boids.get(i).cohesionRepulsion(boidTree, boids, tempPop);
                     }
                     else
                     {
@@ -248,10 +308,7 @@ public class SynthMain extends PApplet
         for (Boid element : boids)
         {
             element.draw(element.sightInner, false);
-            pushMatrix();
-            translate(element.position.x, element.position.y, element.position.z);
-            //ellipse(0, 0, 5, 5);
-            popMatrix();
+            //element.draw(10, false);
         }
     }
 

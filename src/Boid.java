@@ -75,6 +75,24 @@ public class Boid
         acceleration.add(PVector.div(force, mass));
     }
 
+    void seek(PVector target, float radius)
+    {
+        PVector desired = PVector.sub(target, position);
+        float dist = target.dist(position);
+        if (dist < radius)
+        {
+            desired.normalize();
+            desired.mult(maxVel);
+            desired.mult(dist / radius); //normalize(desired_velocity) * max_velocity * (distance / slowingRadius)
+        }
+        else
+        {
+         desired.normalize();
+         desired.setMag(maxVel);
+        }
+        addSteer(desired);
+    }
+
     public void attractToImage(BufferedImage img)
     {
         int width = img.getWidth();
@@ -84,9 +102,9 @@ public class Boid
         int randY = (int) app.random(height);
         Color col = new Color(img.getRGB(randX, randY));
         float weight = app.map((255 - col.getRed()), 0, 255, 0, 1);
-        PVector trans = new PVector(1.0078E7f, -708643.210677f);
+        PVector trans = new PVector(8.0974E7f, 842101.947f);
 
-        float scaleFactor = 62627.2707f;
+        float scaleFactor = 13323.6957f;
         PVector target = new PVector(randX, -randY);
         target.mult(scaleFactor);
         target.add(trans);
