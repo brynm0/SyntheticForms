@@ -30,13 +30,13 @@ public class SynthMain extends PApplet
     private boolean twist = false;
     private long fileID;
     private float scaleFactor;
-
+    PVector translationTarget;
 
     private Boid twistBoid;
 
     private KDTree meshVertexTree;
     private Mesh m;
-    private  Mesh componentA, componentB;
+    private Mesh componentA, componentB;
 
     private PVector[] population;
     private ArrayList<PVector> normalList;
@@ -119,6 +119,8 @@ public class SynthMain extends PApplet
 
     public void setup()
     {
+        scaleFactor = 0.1f;
+
         fileID = System.currentTimeMillis();
         PeasyCam camera = new PeasyCam(this, 500);
         ArrayList<ArrayList<PVector>> curveList = new ArrayList<>();
@@ -134,10 +136,14 @@ public class SynthMain extends PApplet
         System.out.println(OS);
         if (OS.equals("Windows 10"))
         {
-            String currentDirectory = "/Users/evilg/Google%20Drive/Architecture/2018/Semester%201/Synthetic%20Forms/Week%2010/pre3/";
+            String currentDirectory = "/Users/evilg/Google%20Drive/Architecture/2018/Semester%201/Synthetic%20Forms/Week%2011/";
             curveList.add(readCrv(currentDirectory + "1.txt"));
             curveList.add(readCrv(currentDirectory + "2.txt"));
-            meshList = Mesh.readMeshes(currentDirectory + "1.obj", this);
+            componentA = Mesh.readMeshes(currentDirectory + "component1.obj", this).get(0);
+            componentA = componentA.convQuadsToTris();
+            componentB = Mesh.readMeshes(currentDirectory + "component2.obj", this).get(0);
+            componentB = componentB.convQuadsToTris();
+            meshList = Mesh.readMeshes(currentDirectory + "base_post.obj", this);
         }
         else
         {
@@ -160,13 +166,12 @@ public class SynthMain extends PApplet
         //Sometimes the mesh is too large for processing to display, due to near/far clipping plane issues
         //This is especially true if the mesh was modeled to scale in rhino
         // https://stackoverflow.com/questions/4590250/what-is-near-clipping-distance-and-far-clipping-distance-in-3d-graphics
-        scaleFactor = 0.5f;
 
         //I only deal w/ pure triangle meshes
         m = m.convQuadsToTris();
 
         //This moves the centre of the mesh to 0,0,0 - so I don't have to bother with it in Rhino
-        PVector translationTarget = m.moveMeshCentreToWorld();
+        translationTarget = m.moveMeshCentreToWorld();
         try
         {
             PrintWriter out = new PrintWriter(fileID + "translationTarget.txt");
@@ -365,8 +370,8 @@ public class SynthMain extends PApplet
         }
         else if (key == ENTER)
         {
-            saveBoids();
-//            saveMeshes();
+            //saveBoids();
+            saveMeshes();
         }
         else if (key == 'u')
         {
@@ -457,6 +462,11 @@ public class SynthMain extends PApplet
     private void saveMeshes()
     {
         ArrayList<Plane> plArray = planeListFromBoidList(boids);
+//        for (Plane p : plArray)
+//        {
+//            p.origin.mult(1.0f / scaleFactor);
+//            p.origin.add(PVector.mult(translationTarget, -1));
+//        }
         long fileID = System.currentTimeMillis();
         System.out.println("Working on saving obj");
         try
@@ -471,12 +481,14 @@ public class SynthMain extends PApplet
             {
                 if (i % 2500 == 0 && i != 0)
                 {
-                    p.close();
-                    fileID = System.currentTimeMillis();
                     System.out.println(i + "/" + boids.size());
-                    p = new PrintWriter(fileID + "out.obj");
-                    p.println("# Mesh produced by custom script");
-                    p.println("# Bryn Murrell 2018");
+                    p.close();
+                    break;
+                    //                    p.close();
+//                    fileID = System.currentTimeMillis();
+//                    p = new PrintWriter(fileID + "out.obj");
+//                    p.println("# Mesh produced by custom script");
+//                    p.println("# Bryn Murrell 2018");
                 }
                 float t = new PVector(1, 0, 0).dot(boids.get(i).normal);
                 t = map(t, -1, 1, 0, 1);
@@ -484,7 +496,7 @@ public class SynthMain extends PApplet
                 outMesh.moveMeshCentreToWorld();
                 //outMesh.scale(1 / scaleFactor, new PVector());
                 outMesh = Mesh.orientMeshOnPlane(plArray.get(i), outMesh);
-                p.println("o object_" + i);
+                p.println("g object_" + i);
                 for (PVector vert : outMesh.vertices)
                 {
                     p.println("v " + vert.x + " " + vert.y + " " + vert.z + " ");
@@ -497,9 +509,9 @@ public class SynthMain extends PApplet
                 {
                     int currentIndex = 4 * j;
                     String s = "f ";
-                    s += (1 + (outMesh.faceVerts.get(currentIndex))     + (i * outMesh.vertices.size())) + "//" + (1 + (outMesh.faceNormals.get(currentIndex))     + (i * outMesh.vertices.size())) + " ";
+                    s += (1 + (outMesh.faceVerts.get(currentIndex)) + (i * outMesh.vertices.size())) + "//" + (1 + (outMesh.faceNormals.get(currentIndex)) + (i * outMesh.vertices.size())) + " ";
                     s += (1 + (outMesh.faceVerts.get(currentIndex + 1)) + (i * outMesh.vertices.size())) + "//" + (1 + (outMesh.faceNormals.get(currentIndex + 1)) + (i * outMesh.vertices.size())) + " ";
-                    s += (1 + (outMesh.faceVerts.get(currentIndex + 2)) + (i * outMesh.vertices.size())) + "//" + (1 + (outMesh.faceNormals.get(currentIndex + 2)) + (i * outMesh.vertices.size())) + " ";
+                    s += (1 + (outMesh.faceVerts.get(currentIndex + 2)) + (i * outMesh.vertices.size())) + "//" + (1 + (outMesh.faceNormals.get(currentIndex + 2)) + (i * outMesh.vertices.size()));
                     p.println(s);
                 }
             }
@@ -528,7 +540,7 @@ public class SynthMain extends PApplet
         {
             if (element.velocity.mag() == 0)
             {
-                element.velocity = new PVector(1,0,0);
+                element.velocity = new PVector(1, 0, 0);
             }
             PVector x = element.velocity.normalize().copy();
             PVector z = element.normal.normalize().copy();

@@ -221,6 +221,33 @@ public class Mesh
         return outputMeshList;
     }
 
+    public boolean insideMesh(PVector rayOrigin,
+                              PVector rayVector)
+    {
+        int hitnum = 0;
+        for (int i = 0; i < faceVerts.size() / 4; i++)
+        {
+            int index = i * 4;
+            PVector[] currentTriangle = new PVector[3];
+            currentTriangle[0] = vertices.get(faceVerts.get(index));
+            currentTriangle[1] = vertices.get(faceVerts.get(index + 1));
+            currentTriangle[2] = vertices.get(faceVerts.get(index + 2));
+            if (raycastTriangle(rayOrigin, rayVector, currentTriangle) == null)
+            {
+                hitnum++;
+            }
+        }
+        if (hitnum % 2 != 0)
+        {
+            return true;
+        }
+        else
+        {
+            return false;
+        }
+    }
+
+
     void countFaces()
     {
         int total = 0;
