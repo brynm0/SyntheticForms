@@ -1,13 +1,15 @@
 import processing.core.PApplet;
 import processing.core.PVector;
 
+import static java.lang.Float.NaN;
+
 public class SynthMath
 {
     public static PVector lerpVector(PVector A, PVector B, float t)
     {
-        if (t > 1) t = 1;
-        if (t < 0) t = 0;
-        assert (t <= 1 && t >= 0);
+        if (t > 1) {t = 1;}
+        else if (t < 0) {t = 0;}
+        assert (t != NaN) : "t == " + t + " " + A + " " + B;
         return PVector.add(PVector.mult(A, t), PVector.mult(B, 1.0f - t));
     }
 

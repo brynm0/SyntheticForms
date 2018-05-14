@@ -11,6 +11,8 @@ import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Hashtable;
 
+import static java.lang.Float.NaN;
+
 public class CurveCollection
 {
     KDTree curvePointTree;
@@ -18,6 +20,7 @@ public class CurveCollection
     ArrayList<ArrayList<PVector>> curves;
     PApplet app;
     float scaleFactor;
+
     public CurveCollection(String absolutePath, float _scaleFactor, PApplet _app)
     {
         app = _app;
@@ -30,16 +33,6 @@ public class CurveCollection
         curveIndexTable = createCurveMap(curves);
 
 
-    }
-    void scaleCurves(float scaleFactor)
-    {
-        for (ArrayList<PVector> list : curves)
-        {
-            for (PVector vec : list)
-            {
-                vec.mult(scaleFactor);
-            }
-        }
     }
 
     private static ArrayList<ArrayList<PVector>> readCrvFile(String absolutePath, PApplet app)
@@ -138,6 +131,49 @@ public class CurveCollection
         }
         return curveMap;
     }
+
+    public static PVector SegmentClosestPoint(PVector A, PVector B, PVector P)
+    {
+//        auto AB = B - A;
+        PVector AB = PVector.sub(B, A);
+//        auto AP = P - A;
+        PVector AP = PVector.sub(P, A);
+//        float lengthSqrAB = AB.x * AB.x + AB.y * AB.y;
+        float lengthSqAB = AB.magSq();
+//        float t = (AP.x * AB.x + AP.y * AB.y) / lengthSqrAB;
+        float t = (Math.abs(AP.dot(AB)))/ lengthSqAB;
+        assert t != NaN : "t == " + t + " " + A + " " + B;
+        if (t <= 0)
+        {
+            return A;
+
+        }
+        else if (t >= 1)
+        {
+            return B;
+        }
+        else
+        {
+            assert t != NaN : "t == " + t + " " + A + " " + B;
+            assert !(t >= 1);
+            assert !(t <= 0);
+            assert t != NaN : "t == " + t + " " + A + " " + B;
+
+            return SynthMath.lerpVector(B, A, t);
+        }
+    }
+
+    void scaleCurves(float scaleFactor)
+    {
+        for (ArrayList<PVector> list : curves)
+        {
+            for (PVector vec : list)
+            {
+                vec.mult(scaleFactor);
+            }
+        }
+    }
+
     public PVector[] explodeAllCurves()
     {
         int totalSize = 0;
@@ -198,39 +234,6 @@ public class CurveCollection
             }
         }
     }
-
-    public static PVector SegmentClosestPoint(PVector A, PVector B, PVector P)
-    {
-//        auto AB = B - A;
-        PVector AB = PVector.sub(B, A);
-//        auto AP = P - A;
-        PVector AP = PVector.sub(P, A);
-//        float lengthSqrAB = AB.x * AB.x + AB.y * AB.y;
-        float lengthSqAB = AB.magSq();
-//        float t = (AP.x * AB.x + AP.y * AB.y) / lengthSqrAB;
-        float t = (AP.dot(AB)) / lengthSqAB;
-        if (t > 1) {t = 1;}
-        else if (t < 0) {t = 0;}
-        if (t == 0)
-        {
-            return A;
-
-        }
-        if (t == 1)
-        {
-            return B;
-
-        }
-        else
-        {
-            assert t <= 1 && t >= 0;
-            PVector temp = SynthMath.lerpVector(B, A, t);
-            return temp;
-        }
-    }
-
-
-
 
 
 }

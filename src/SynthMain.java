@@ -21,7 +21,7 @@ public class SynthMain extends PApplet
 {
     public static boolean drawneighbours = false;
     public float scaleFactor = 0.0001f;
-    public int boidCount;
+    public static int boidCount;
     CurveCollection roads;
     BufferedImage img;
     ArrayList<PVector> attractionLocations;
@@ -125,20 +125,18 @@ public class SynthMain extends PApplet
                 offset = random(-15000, 0);
             }
             offset *= scaleFactor;
-            boids.add(new Boid(1, population[i], 0.75f, 0.1f, new PVector(0, 0, 1),
+            boids.add(new Boid(1, population[i], 1.5f, .5f, new PVector(0, 0, 1),
                     random(115000, 150000)* scaleFactor, offset + lateralSep[i], this));
         }
         boidCount = boids.size();
         if (OS.equals("Linux"))
         {
-            roads = new CurveCollection("/home/bryn/ResearchElective/1.crv", scaleFactor, this);
+            roads = new CurveCollection("/home/bryn/ResearchElective/roads.crv", scaleFactor, this);
         }
         else
         {
             roads = new CurveCollection("/Users/evilg/Google%20Drive/Architecture/2018/Semester%201/Research/txts/1.crv", scaleFactor, this);
         }
-
-
         img = null;
         try
         {
@@ -276,8 +274,8 @@ public class SynthMain extends PApplet
                     else if (!followNoise)
                     {
                         boids.get(i).flowAlongCurve(roads);
-                        boidCount = boids.get(i).attractToCurve(boidCount, roads, boidTree, boids, tempPop, roadSep[i]);
-                        boids.get(i).cohesionRepulsion(boidTree, boids, tempPop);
+                        boidCount = boids.get(i).attractToCurve(boidCount, roads, roadSep[i], 500 * scaleFactor, 10000*scaleFactor);
+                        boids.get(i).cohesionRepulsion(boidTree, boids, tempPop, 0.5f);
                     }
                     else
                     {

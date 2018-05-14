@@ -147,7 +147,7 @@ public class Boid
 
     }
 
-    public int attractToCurve(int currentCount, CurveCollection crv, KDTree boidTree, ArrayList<Boid> boids, ArrayList<PVector> population, float distance)
+    public int attractToCurve(int currentCount, CurveCollection crv, float distance, float tolerance, float slowingRadius)
     {
         PVector cp = crv.curvePointTree.nearestNeighbor(position);
 
@@ -172,51 +172,45 @@ public class Boid
             secondClosest = prev.copy();
         }
         cp = CurveCollection.SegmentClosestPoint(cp, secondClosest, position);
-
-        if (cp.dist(position) < (distance + 1000 * crv.scaleFactor) && cp.dist(position) > (distance - 1000 * crv.scaleFactor))
+        PVector direction = PVector.sub(position, cp);
+        direction.normalize().mult(distance);
+        PVector target = PVector.add(direction, cp);
+        boolean arrived = arrive(target, tolerance, slowingRadius);
+        if (arrived)
         {
-            currentCount = arriveAtCurve(currentCount, cp, boidTree, crv.scaleFactor, boids, population);
-        }
-        else
-        {
-            PVector direction = PVector.sub(position, cp);
-            direction.normalize().mult(distance);
-            PVector target = PVector.add(direction, cp);
-            attract(target);
+            currentCount--;
         }
         return currentCount;
     }
 
-    public int arriveAtCurve(int countCurrent, PVector cpOnCurve, KDTree positionTree, float scaleFactor, ArrayList<Boid> boids, ArrayList<PVector> population)
+    private boolean arrive(PVector target, float tolerance, float slowingRadius)
     {
-        float dist = PVector.dist(position, cpOnCurve);
-        ArrayList<PVector> neighbours = positionTree.radiusNeighbours(position, sightInner);
-        boolean shouldFreeze = true;
-        for (PVector element : neighbours)
+        PVector desired = PVector.sub(target,position);
+        float dist = position.dist(target);
+        if (dist < tolerance)
         {
-            if (SynthMain.drawneighbours)
-            {
-                app.stroke(255, 255, 0);
-                app.line(position.x, position.y, position.z, element.x, element.y, element.z);
-            }
-
-            int boidIndex = population.indexOf(element);
-            if (boids.get(boidIndex).isFrozen)
-            {
-                //face cpOnCurve
-                shouldFreeze = false;
-
-            }
-        }
-        if (shouldFreeze)
-        {
-            PVector newVel = PVector.sub(cpOnCurve, position);
-            newVel.normalize();
-            velocity = newVel;
             this.isFrozen = true;
-            countCurrent--;
         }
-        return countCurrent;
+        if (dist < slowingRadius)
+        {
+            desired = desired.setMag(maxVel).mult(dist / slowingRadius);
+        }
+        else
+        {
+            desired = desired.setMag(maxVel);
+        }
+        addSteer(desired);
+
+        if (this.isFrozen)
+        {
+            return true;
+
+        }
+        else
+        {
+            return false;
+        }
+
     }
 
     private void addSteer(PVector desired)
@@ -360,7 +354,7 @@ public class Boid
     }
 
 
-    public void cohesionRepulsion(KDTree pointsTree, ArrayList<Boid> boidsList, ArrayList<PVector> population)
+    public void cohesionRepulsion(KDTree pointsTree, ArrayList<Boid> boidsList, ArrayList<PVector> population, float weight)
     {
         int attractioncount = 0;
         ArrayList<PVector> neighbours = pointsTree.radiusNeighbours(position, this.sightOuter);
@@ -402,9 +396,9 @@ public class Boid
         desiredAttraction = PVector.sub(desiredAttraction, position);
         PVector steerAway = PVector.sub(desiredRepulsion, velocity);
         PVector steerToward = PVector.sub(desiredAttraction, velocity);
-        addForce(steerAway);
+        addForce(steerAway.mult(weight));
 
-        addForce(steerToward);
+        addForce(steerToward.mult(weight));
 
 
     }
