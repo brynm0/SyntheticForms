@@ -718,6 +718,169 @@ public class KDTree
 
     }
 
+    public PVector nearestNotInList(PVector point, ArrayList<PVector> list)
+    {
+        return nearestNotInListR(point, new PVector(Float.MAX_VALUE, Float.MAX_VALUE, Float.MAX_VALUE), list);
+    }
+
+    public PVector nearestNotInListR(PVector point, PVector currentBest, ArrayList<PVector> list)
+    {
+        //Move down nodes til find a leaf
+        boolean left = false;
+        boolean right = false;
+        assert point != null;
+        if (value != null && !value.equals(point) && currentBest.equals(new PVector(Float.MAX_VALUE, Float.MAX_VALUE, Float.MAX_VALUE)) && !list.contains(value))
+        {
+            currentBest = value;
+        }
+        else if (value != null && !value.equals(point))
+        {
+            if (currentBest.dist(point) > value.dist(point) && !list.contains(value))
+            {
+                currentBest = value;
+            }
+        }
+        else
+        {
+            if (this.depth % 3 == 0)
+            {
+                //x
+                if (point.x <= axisLocation && leftChild != null)
+                {
+                    //check left
+                    currentBest = leftChild.nearestNotInListR(point, currentBest, list);
+                    left = true;
+                    numSearches++;
+                }
+                else if (rightChild != null)
+                {
+                    //check y
+                    currentBest = rightChild.nearestNotInListR(point, currentBest, list);
+                    right = true;
+                    numSearches++;
+
+                }
+            }
+            else if (this.depth % 3 == 1)
+            {
+                //y
+                if (point.y <= axisLocation && leftChild != null)
+                {
+                    //check left
+                    currentBest = leftChild.nearestNotInListR(point, currentBest, list);
+                    left = true;
+                    numSearches++;
+
+                }
+                else if (rightChild != null)
+
+                {
+                    //check y
+                    currentBest = rightChild.nearestNotInListR(point, currentBest, list);
+                    right = true;
+                    numSearches++;
+
+                }
+
+            }
+            else
+            {
+                //z
+                if (point.z <= axisLocation && leftChild != null)
+                {
+                    //check left
+                    currentBest = leftChild.nearestNotInListR(point, currentBest, list);
+                    left = true;
+                    numSearches++;
+
+                }
+                else if (rightChild != null)
+
+                {
+                    //check y
+                    currentBest = rightChild.nearestNotInListR(point, currentBest, list);
+                    right = true;
+                    numSearches++;
+
+                }
+
+            }
+        }
+        if (!right && left)
+        {
+            //Should we check right?
+            if (depth % 3 == 0)
+            {
+                //x
+                if (new PVector(point.x, 0, 0).dist(new PVector(axisLocation, 0, 0)) < currentBest.dist(point))
+                {
+                    currentBest = rightChild.nearestNotInListR(point, currentBest, list);
+                    numSearches++;
+
+                }
+            }
+            else if (depth % 3 == 1)
+            {
+                //y
+                if (new PVector(0, point.y, 0).dist(new PVector(0, axisLocation, 0)) < currentBest.dist(point))
+                {
+                    currentBest = rightChild.nearestNotInListR(point, currentBest, list);
+                    numSearches++;
+
+                }
+
+            }
+            else
+            {
+                if (new PVector(0, 0, point.z).dist(new PVector(0, 0, axisLocation)) < currentBest.dist(point))
+                {
+                    currentBest = rightChild.nearestNotInListR(point, currentBest, list);
+                    numSearches++;
+
+                }
+
+            }
+        }
+        else if (right)
+        {
+            //should we check left?
+            if (depth % 3 == 0)
+            {
+                //x
+                if (new PVector(point.x, 0, 0).dist(new PVector(axisLocation, 0, 0)) < currentBest.dist(point))
+                {
+                    currentBest = leftChild.nearestNotInListR(point, currentBest, list);
+                    numSearches++;
+
+                }
+            }
+            else if (depth % 3 == 1)
+            {
+                //y
+                if (new PVector(0, point.y, 0).dist(new PVector(0, axisLocation, 0)) < currentBest.dist(point))
+                {
+                    currentBest = leftChild.nearestNotInListR(point, currentBest, list);
+                    numSearches++;
+
+                }
+
+            }
+            else
+            {
+                if (new PVector(0, 0, point.z).dist(new PVector(0, 0, axisLocation)) < currentBest.dist(point))
+                {
+                    currentBest = leftChild.nearestNotInListR(point, currentBest, list);
+                    numSearches++;
+
+                }
+
+            }
+
+        }
+        return currentBest;
+
+
+    }
 
     public int countTotalValues(int currentTotal)
     {

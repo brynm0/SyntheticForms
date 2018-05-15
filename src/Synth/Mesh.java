@@ -290,8 +290,9 @@ public class Mesh
     public void drawWires(int strokeCol, int strokeWeight)
     {
         app.beginShape();
-        app.stroke(strokeCol);
+        app.stroke(0,0,0, strokeCol);
         app.strokeWeight(strokeWeight);
+        app.noFill();
         for (int i = 0; i < faceVerts.size(); i++)
         {
             if (faceVerts.get(i) == -1)
@@ -384,6 +385,255 @@ public class Mesh
         }
         return out;
     }
+    public PVector[] closestPointOnMesh(PVector point, KDTree vertexTree)
+    {
+        PVector closestVert = vertexTree.nearestNeighbor(point);
+        //TODO(bryn): Rework this so it's v1, v2 v3 - or closest vert & second closest can change.
+        int closestVertIndex = vertices.indexOf(closestVert);
+        assert faceVerts.contains(closestVertIndex);
+        PVector closestVertNormal = normals.get(faceNormals.get(faceVerts.indexOf(closestVertIndex)));
+
+        ArrayList<Integer> indices = SynthMain.indexOfAll(closestVertIndex, faceVerts);
+        int index1;
+        int index2;
+        int index3;
+        PVector normal2;
+        PVector normal3;
+
+        PVector tex1;
+        PVector tex2;
+        PVector tex3;
+
+        PVector result = null;
+        PVector averageNormal = new PVector();
+        PVector averageTex = new PVector();
+
+        for (int i = 0; i < indices.size(); i++)
+        {
+            if (indices.get(i) % 4 == 0)
+            {
+                //Start of face
+                index1 = faceVerts.get(indices.get(i));
+                index2 = faceVerts.get(indices.get(i) + 1);
+                index3 = faceVerts.get(indices.get(i) + 2);
+                int normalIndex1 = faceNormals.get(indices.get(i) + 1);
+                int normalIndex2 = faceNormals.get(indices.get(i) + 2);
+                tex1 = texCoords.get(index1);
+                tex2 = texCoords.get(index2);
+                tex3 = texCoords.get(index3);
+
+                normal2 = normals.get(normalIndex1);
+
+                normal3 = normals.get(normalIndex2);
+
+                PVector[] temparray = {vertices.get(index1), vertices.get(index2), vertices.get(index3)};
+                averageNormal = PVector.add(PVector.add(normal2, normal3), closestVertNormal);
+                averageNormal = PVector.div(averageNormal, 3);
+
+                averageTex = PVector.add(PVector.add(tex1, tex3), tex2);
+                averageTex = PVector.div(averageTex, 3);
+
+
+                PVector tempResult = lineIntersectsTriangle(point, averageNormal, temparray);
+                if ((tempResult != null && (result == null || point.dist(result) > point.dist(tempResult))))
+                {
+                    result = tempResult;
+                }
+
+
+            }
+            else if (indices.get(i) % 4 == 1)
+            {
+                //Middle of face
+                index2 = faceVerts.get(indices.get(i));
+                index1 = faceVerts.get(indices.get(i) - 1);
+                index3 = faceVerts.get(indices.get(i) + 1);
+
+                int normalIndex1 = faceNormals.get(indices.get(i) - 1);
+                int normalIndex2 = faceNormals.get(indices.get(i) + 1);
+                normal2 = normals.get(normalIndex1);
+
+                normal3 = normals.get(normalIndex2);
+
+                tex1 = texCoords.get(index1);
+                tex2 = texCoords.get(index2);
+                tex3 = texCoords.get(index3);
+
+                PVector[] temparray = {vertices.get(index1), vertices.get(index2), vertices.get(index3)};
+                averageNormal = PVector.add(PVector.add(normal2, normal3), closestVertNormal);
+                averageNormal = PVector.div(averageNormal, 3);
+
+                averageTex = PVector.add(PVector.add(tex1, tex3), tex2);
+                averageTex = PVector.div(averageTex, 3);
+
+
+                PVector tempResult = lineIntersectsTriangle(point, averageNormal, temparray);
+                if ((tempResult != null && (result == null || point.dist(result) > point.dist(tempResult))))
+                {
+                    result = tempResult;
+                }
+
+
+            }
+            else if (indices.get(i) % 4 == 2)
+            {
+                //End of face
+                index3 = faceVerts.get(indices.get(i));
+                index2 = faceVerts.get(indices.get(i) - 1);
+                index1 = faceVerts.get(indices.get(i) - 2);
+
+                int normalIndex1 = faceNormals.get(indices.get(i) - 1);
+                int normalIndex2 = faceNormals.get(indices.get(i) - 2);
+                normal2 = normals.get(normalIndex1);
+
+                normal3 = normals.get(normalIndex2);
+                tex1 = texCoords.get(index1);
+                tex2 = texCoords.get(index2);
+                tex3 = texCoords.get(index3);
+
+                PVector[] temparray = {vertices.get(index1), vertices.get(index2), vertices.get(index3)};
+                averageNormal = PVector.add(PVector.add(normal2, normal3), closestVertNormal);
+                averageNormal = PVector.div(averageNormal, 3);
+
+                averageTex = PVector.add(PVector.add(tex1, tex3), tex2);
+                averageTex = PVector.div(averageTex, 3);
+
+                PVector tempResult = lineIntersectsTriangle(point, averageNormal, temparray);
+                if ((tempResult != null && (result == null || point.dist(result) > point.dist(tempResult))))
+                {
+                    result = tempResult;
+                }
+
+            }
+
+
+        }
+        if (result != null)
+        {
+            return new PVector[]{result, averageNormal, averageTex};
+        }
+
+        //NEED TO DO THE SAME AS ABOVE FOR ALL EDGES
+        //For each vertex connected to the closest one, try to project onto the edge they make. return the closest one
+        PVector closestInterpolatedPoint = null;
+        PVector closestInterpolatedNormal = new PVector();
+        PVector closestIntTex = new PVector();
+        for (int i = 0; i < indices.size(); i++)
+        {
+            if (indices.get(i) % 4 == 0)
+            {
+                //Start of face
+                index1 = faceVerts.get(indices.get(i));
+                index2 = faceVerts.get(indices.get(i) + 1);
+                index3 = faceVerts.get(indices.get(i) + 2);
+                int normalIndex1 = faceNormals.get(indices.get(i) + 1);
+                int normalIndex2 = faceNormals.get(indices.get(i) + 2);
+
+                tex1 = texCoords.get(index1);
+                tex2 = texCoords.get(index2);
+                tex3 = texCoords.get(index3);
+
+
+                PVector[] temp = lineCP2(vertices.get(index1), vertices.get(index2), point,
+                        closestVertNormal, normals.get(normalIndex1),
+                        tex1, tex2);
+                if (closestInterpolatedPoint == null)
+                {
+                    closestInterpolatedPoint = temp[0];
+                    closestInterpolatedNormal = temp[1];
+                    closestIntTex = temp[2];
+
+                }
+                temp = lineCP2(vertices.get(index1), vertices.get(index3), point, closestVertNormal, normals.get(normalIndex2),
+                        tex1, tex3);
+                if (temp[0].dist(point) < closestInterpolatedPoint.dist(point))
+                {
+                    closestInterpolatedPoint = temp[0];
+                    closestInterpolatedNormal = temp[1];
+                    closestIntTex = temp[2];
+                }
+            }
+            else if (indices.get(i) % 4 == 1)
+            {
+                //Middle of face
+                index2 = faceVerts.get(indices.get(i));
+                index1 = faceVerts.get(indices.get(i) - 1);
+                index3 = faceVerts.get(indices.get(i) + 1);
+
+                int normalIndex1 = faceNormals.get(indices.get(i) - 1);
+                int normalIndex2 = faceNormals.get(indices.get(i) + 1);
+                tex1 = texCoords.get(index1);
+                tex2 = texCoords.get(index2);
+                tex3 = texCoords.get(index3);
+
+                PVector[] temp = lineCP2(vertices.get(index2), vertices.get(index1), point,
+                        closestVertNormal, normals.get(normalIndex1),
+                        tex2, tex1);
+                if (closestInterpolatedPoint == null)
+                {
+                    closestInterpolatedPoint = temp[0];
+                    closestInterpolatedNormal = temp[1];
+                    closestIntTex = temp[2];
+
+                }
+                temp = lineCP2(vertices.get(index2), vertices.get(index3), point, closestVertNormal, normals.get(normalIndex2), tex2, tex3);
+                if (temp[0].dist(point) < closestInterpolatedPoint.dist(point))
+                {
+                    closestInterpolatedPoint = temp[0];
+                    closestInterpolatedNormal = temp[1];
+                    closestIntTex = temp[2];
+
+                }
+
+            }
+            else if (indices.get(i) % 4 == 2)
+            {
+                //End of face
+                index3 = faceVerts.get(indices.get(i));
+                index2 = faceVerts.get(indices.get(i) - 1);
+                index1 = faceVerts.get(indices.get(i) - 2);
+
+                int normalIndex2 = faceNormals.get(indices.get(i) - 1);
+                int normalIndex1 = faceNormals.get(indices.get(i) - 2);
+                normal2 = normals.get(normalIndex1);
+                normal3 = normals.get(normalIndex2);
+
+                tex1 = texCoords.get(index1);
+                tex2 = texCoords.get(index2);
+                tex3 = texCoords.get(index3);
+
+                PVector[] temp = lineCP2(vertices.get(index3), vertices.get(index2), point, closestVertNormal, normals.get(normalIndex2),
+                        tex3, tex2);
+                if (closestInterpolatedPoint == null)
+                {
+                    closestInterpolatedPoint = temp[0];
+                    closestInterpolatedNormal = temp[1];
+                    closestIntTex = temp[2];
+
+                }
+                temp = lineCP2(vertices.get(index3), vertices.get(index1), point, closestVertNormal, normals.get(normalIndex1), tex3, tex1);
+                if (temp[0].dist(point) < closestInterpolatedPoint.dist(point))
+                {
+                    closestInterpolatedPoint = temp[0];
+                    closestInterpolatedNormal = temp[1];
+                    closestIntTex = temp[2];
+
+                }
+
+            }
+
+
+        }
+        if (SynthMain.drawNeighbours)
+        {
+            app.strokeWeight(5);
+            app.stroke(0, 255, 255);
+            app.line(point.x, point.y, point.z, closestInterpolatedPoint.x, closestInterpolatedPoint.y, closestInterpolatedPoint.z);
+            app.strokeWeight(1);
+        }
+        return new PVector[]{closestInterpolatedPoint, closestInterpolatedNormal, closestIntTex};
+    }
+
 
     public PVector[] populateDownwardFaces(int num)
     {

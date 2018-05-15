@@ -19,6 +19,8 @@ public class Boid
     private float maxForce;
     private PVector acceleration;
     private PApplet app;
+    boolean moves = true;
+
 
     public Boid(PApplet _app)
     {
@@ -338,6 +340,122 @@ public class Boid
 
     }
 
+    public void repelMesh(MeshCollection m, float weight)
+    {
+        PVector cp = m.closestPointOnMesh(position);
+        PVector desired = PVector.sub(position, cp);
+        desired.setMag(maxVel);
+        desired.mult(1 / (cp.dist(position)));
+        addSteer(desired);
+    }
+
+
+    public int traverseGraph(ArrayList<Graph> nodes, ArrayList<HashMap<PVector, Integer>> visMap, ArrayList<ArrayList<Graph>> visited,
+                             HashMap<PVector, Integer> vertexMap, int index, KDTree tree, float eps, int numTraversed, float weight)
+    {
+
+        HashMap<PVector, Integer> currentMap = visMap.get(index);
+        ArrayList<Graph> currentList = visited.get(index);
+        if (currentList.size() != nodes.size())
+        {
+            if (currentList.size() == 0)
+            {
+                PVector nearest = tree.nearestNeighbor(position);
+                if (nearest.dist(position) < eps)
+                {
+                    int fIndex = (vertexMap.get(nearest));
+                    currentList.add(nodes.get(fIndex));
+                    currentMap.put(nodes.get(fIndex).nodePos, fIndex);
+                    nodes.get(fIndex).timesVisited++;
+                    if (nodes.get(fIndex).timesVisited == 1)
+                    {
+                        return numTraversed + 1;
+                    }
+                }
+                else
+                {
+                    attract(nearest, weight);
+                }
+
+            }
+            else
+            {
+                Graph lastVisited = currentList.get(currentList.size() - 1);
+                Graph target = getNextTargetFromGraph(lastVisited, currentMap);
+                if (target != null && position.dist(target.nodePos) < eps)
+                {
+                    currentList.add(target);
+                    currentMap.put(target.nodePos, -1);
+                    target.timesVisited++;
+                    if (target.timesVisited == 1)
+                    {
+                        return numTraversed + 1;
+                    }
+                }
+                else if (target != null)
+                {
+                    attract(target.nodePos, weight);
+                }
+                else
+                {
+                    ArrayList<PVector> visitedPositions = new ArrayList<>();
+                    for (Graph g : currentList)
+                    {
+                        visitedPositions.add(g.nodePos);
+                    }
+
+                    target = nodes.get(vertexMap.get(tree.nearestNotInList(position, visitedPositions)));
+                    if (position.dist(target.nodePos) < eps)
+                    {
+                        currentList.add(target);
+                        currentMap.put(target.nodePos, -1);
+                        target.timesVisited++;
+
+                        if (target.timesVisited == 1)
+                        {
+                            return numTraversed + 1;
+                        }
+
+                    }
+                    else
+                    {
+                        attract(target.nodePos, weight);
+                    }
+                }
+            }
+        }
+        return numTraversed;
+    }
+
+    public Graph getNextTargetFromGraph(Graph from, HashMap<PVector, Integer> currentMap)
+    {
+        Graph target = null;
+        float recordFitness = Float.MAX_VALUE;
+        for (Graph potential : from.connections)
+        {
+            if (currentMap.get(potential.nodePos) == null)
+            {
+                PVector normal = potential.normal;
+                float angle = PApplet.abs(90.0f - PApplet.degrees(PApplet.acos(normal.normalize().dot(new PVector(0, 0, 1)))));
+                float distcontribution = position.dist(potential.nodePos) / 2.0f;
+                float potentialFitness = potential.timesVisited * 25.0f + angle * 2;
+                if (potentialFitness < recordFitness)
+                {
+                    recordFitness = potentialFitness;
+                    target = potential;
+                }
+            }
+        }
+        return target;
+
+    }
+
+    public void attract(PVector target, float weight)
+    {
+        PVector desired = PVector.sub(target, position);
+        desired.limit(maxVel * weight);
+        addSteer(desired);
+    }
 
     public void integrate()
     {
