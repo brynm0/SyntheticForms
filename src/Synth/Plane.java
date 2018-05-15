@@ -14,6 +14,7 @@ public class Plane
         y = new PVector(0, 1, 0);
         z = new PVector(0, 0, 1);
     }
+
     public Plane(PVector _origin, PVector _z, PVector _x)
     {
         //a x b
@@ -90,11 +91,27 @@ public class Plane
         return out;
     }
 
+    public Mesh orientMeshOnPlane(Mesh m)
+    {
+        Mesh out = new Mesh(m);
+        for (int i = 0; i < out.vertices.size(); i++)
+        {
+            PVector newVert = out.vertices.get(i).copy();
+            PVector outx = PVector.mult(x, newVert.x);
+            PVector outy = PVector.mult(y, newVert.y);
+            PVector outz = PVector.mult(z, newVert.z);
+            newVert = PVector.add(outx, PVector.add(outy, outz));
+            newVert.add(origin.copy());
+            out.vertices.set(i, newVert.copy());
+        }
+        return out;
+    }
+
 
     public PVector cpOnPlane(PVector p)
     {
         // p' = p - (n ⋅ (p - o)) * n
-        return PVector.sub(p, PVector.mult( z, PVector.dot(z, PVector.sub(p, origin))));
+        return PVector.sub(p, PVector.mult(z, PVector.dot(z, PVector.sub(p, origin))));
     }
 
 

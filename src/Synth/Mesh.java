@@ -221,33 +221,6 @@ public class Mesh
         return outputMeshList;
     }
 
-    public boolean insideMesh(PVector rayOrigin,
-                              PVector rayVector)
-    {
-        int hitnum = 0;
-        for (int i = 0; i < faceVerts.size() / 4; i++)
-        {
-            int index = i * 4;
-            PVector[] currentTriangle = new PVector[3];
-            currentTriangle[0] = vertices.get(faceVerts.get(index));
-            currentTriangle[1] = vertices.get(faceVerts.get(index + 1));
-            currentTriangle[2] = vertices.get(faceVerts.get(index + 2));
-            if (raycastTriangle(rayOrigin, rayVector, currentTriangle) == null)
-            {
-                hitnum++;
-            }
-        }
-        if (hitnum % 2 != 0)
-        {
-            return true;
-        }
-        else
-        {
-            return false;
-        }
-    }
-
-
     void countFaces()
     {
         int total = 0;
@@ -274,23 +247,6 @@ public class Mesh
         return out;
     }
 
-    public static Mesh orientMeshOnPlane(Plane p, Mesh m)
-    {
-        Mesh out = new Mesh(m);
-        for (int i = 0; i < out.vertices.size(); i++)
-        {
-            PVector newVert = out.vertices.get(i);
-
-            PVector x = PVector.mult(p.x, newVert.x);
-            PVector y = PVector.mult(p.y, newVert.y);
-            PVector z = PVector.mult(p.z, newVert.z);
-            newVert = PVector.add(x, PVector.add(y, z));
-            newVert.add(p.origin);
-            out.vertices.set(i, newVert);
-        }
-
-        return out;
-    }
 
     public PVector getMeshAverage()
     {
@@ -429,6 +385,78 @@ public class Mesh
         return out;
     }
 
+    public PVector[] populateDownwardFaces(int num)
+    {
+        PVector[] out = new PVector[num];
+        ArrayList<Integer[]> triangleList = new ArrayList<>();
+        for (int i = 0; i < faceVerts.size() / 4; i++)
+        {
+            int index = i * 4;
+            PVector averageNormal = new PVector();
+            averageNormal.add(normals.get(faceNormals.get(index)));
+            averageNormal.add(normals.get(faceNormals.get(index + 1)));
+            averageNormal.add(normals.get(faceNormals.get(index + 2)));
+            averageNormal.div(3);
+            averageNormal.normalize();
+            if (averageNormal.z < 0)
+            {
+                Integer[] templist = new Integer[3];
+                templist[0] = faceVerts.get(index);
+                templist[1] = faceVerts.get(index + 1);
+                templist[2] = faceVerts.get(index + 2);
+                triangleList.add(templist);
+            }
+        }
+        float totalArea = 0;
+        ArrayList<Float> areaList = new ArrayList<>();
+        for (Integer[] triangle : triangleList             )
+        {
+            float side1 = vertices.get(triangle[0]).dist(vertices.get(triangle[1]));
+            float side2 = vertices.get(triangle[1]).dist(vertices.get(triangle[2]));
+            float side3 = vertices.get(triangle[2]).dist(vertices.get(triangle[0]));
+            float sp = (side1 + side2 + side3) / 2;
+            float triangleArea = PApplet.sqrt(sp*0.5f*(sp - side1)*(sp - side2)*(sp - side3));
+            totalArea += triangleArea;
+            areaList.add(triangleArea);
+        }
+        for (int outIndex = 0; outIndex < num; outIndex++)
+        {
+            //int randFaceIndex = (int) app.random(triangleList.size());
+            float randval = app.random(totalArea);
+            float runningTotal = 0;
+            int randFaceIndex = -1;
+            for(int i = 0; i < triangleList.size(); i++)
+            {
+                if (runningTotal + areaList.get(i) >= randval)
+                {
+                    randFaceIndex = i;
+                    break;
+                }
+                runningTotal += areaList.get(i);
+            }
+            assert randFaceIndex != -1;
+            PVector p1 = vertices.get(triangleList.get(randFaceIndex)[0]);
+            PVector p2 = vertices.get(triangleList.get(randFaceIndex)[1]);
+            PVector p3 = vertices.get(triangleList.get(randFaceIndex)[2]);
+
+            PVector param = new PVector(app.random(1), app.random(1));
+
+            if (param.x + param.y > 1)
+            {
+                //Transform so that it fits on the triangle
+                param.x = 1 - param.x;
+                param.y = 1 - param.y;
+            }
+
+            //x = a1 * v1 + a2 * v2;
+            PVector v1 = PVector.sub(p2, p1);
+            PVector v2 = PVector.sub(p3, p1);
+            PVector f = PVector.add(PVector.mult(v1, param.x), PVector.mult(v2, param.y));
+            f.add(p1);
+            out[outIndex] = f;
+        }
+        return out;
+    }
 
     public void popNoise()
     {
@@ -788,12 +816,33 @@ public class Mesh
         }
     }
 
-    //
-//    public PVector raycastMesh(PVector rayOrigin,
-//                               PVector rayVector)
-//    {
-//
-//    }
+    public boolean insideMesh(PVector rayOrigin,
+                              PVector rayVector)
+    {
+        return rayCastMesh(rayOrigin, rayVector).size() % 2 != 0;
+    }
+
+    public ArrayList<PVector> rayCastMesh(PVector rayOrigin,
+                              PVector rayVector)
+    {
+        ArrayList<PVector> results = new ArrayList<>();
+        for (int i = 0; i < faceVerts.size() / 4; i++)
+        {
+            int index = i * 4;
+            PVector[] currentTriangle = new PVector[3];
+            currentTriangle[0] = vertices.get(faceVerts.get(index));
+            currentTriangle[1] = vertices.get(faceVerts.get(index + 1));
+            currentTriangle[2] = vertices.get(faceVerts.get(index + 2));
+            PVector result = raycastTriangle(rayOrigin, rayVector, currentTriangle);
+            if (result != null)
+            {
+                results.add(result);
+            }
+        }
+        return results;
+    }
+
+
     PVector[] lineCP2(PVector A, PVector B, PVector P, PVector normalA, PVector normalB, PVector texA, PVector texB)
     {
 //        auto AB = B - A;

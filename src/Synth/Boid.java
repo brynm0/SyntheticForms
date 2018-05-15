@@ -11,7 +11,7 @@ public class Boid
 {
     public PVector velocity;
     public PVector position;
-    public PVector normal = new PVector(0, 0, 1);
+    public PVector normal;
     float sightInner;
     float sightOuter;
     private float mass;
@@ -154,7 +154,7 @@ public class Boid
             Boid b = boids.get(population.indexOf(neighbour));
             float t = app.map(position.dist(b.position), 0, sightOuter, 1, 0);
             originAverage.add(SynthMath.lerpVector(position, b.position, t));
-            normalAverage.add(SynthMath.lerpVector(normal, b.normal, t));
+            normalAverage.add(SynthMath.lerpVector(normal.copy(), b.normal.copy(), t));
         }
         originAverage.div(neighbours.size());
         normalAverage.div(neighbours.size());
@@ -191,10 +191,9 @@ public class Boid
 
         //TODO(bryn): This is still very slow, perhaps consider attraction to vertices ONLY, rather than CP
         final PVector[] cp = m.followNoiseCP(position, meshVertexTree);
-        this.normal = cp[1].copy();
         //Directly add some acceleration that is in the direction of the target, proportional to the distance
         PVector tempAccel = PVector.sub(cp[0], position);
-        tempAccel.normalize();
+        tempAccel.setMag(1);
         tempAccel.mult(weight);
         acceleration.add(tempAccel);
 
@@ -210,12 +209,13 @@ public class Boid
 
 
     }
+
     public void attractToMesh(MeshCollection meshCollection, float weight)
     {
         final PVector cp = meshCollection.closestPointOnMesh(position);
         //Directly add some acceleration that is in the direction of the target, proportional to the distance
         PVector tempAccel = PVector.sub(cp, position);
-        tempAccel.normalize();
+        tempAccel = tempAccel.normalize();
         tempAccel.mult(weight);
         acceleration.add(tempAccel);
     }
@@ -234,9 +234,8 @@ public class Boid
         }
     }
 
-    public void align(KDTree pointsTree, ArrayList<Boid> boidsList, PVector[] population, HashMap<PVector, Integer> boidMap)
+    public void align(ArrayList<PVector> neighbours, ArrayList<Boid> boidsList, PVector[] population, HashMap<PVector, Integer> boidMap)
     {
-        ArrayList<PVector> neighbours = pointsTree.radiusNeighbours(position, sightOuter);
         if (neighbours.size() != 0)
         {
             //get sum of neighbours velocity
@@ -252,26 +251,11 @@ public class Boid
                 addSteer(sum);
             }
         }
-
     }
 
-    public void wanderOnMesh(float r, Mesh m)
-    {
-        PVector randVector = PVector.fromAngle((app.random(PConstants.TWO_PI)));
-        randVector.setMag(r);
-        Plane currentPlane = new Plane(position, normal);
-        PVector transformedRandVector = (PVector.mult(currentPlane.x, randVector.x));
-        transformedRandVector.add(PVector.mult(currentPlane.y, randVector.y));
-        transformedRandVector.add(PVector.mult(currentPlane.z, randVector.z));
-        PVector desired = (PVector.add(randVector, velocity));
-        PVector steer = PVector.sub(desired, velocity);
-        addForce(steer);
-    }
-
-    public void cohesionRepulsion(KDTree pointsTree)
+    public void cohesionRepulsion(ArrayList<PVector> neighbours)
     {
         int attractioncount = 0;
-        ArrayList<PVector> neighbours = pointsTree.radiusNeighbours(position, this.sightOuter);
         PVector desiredRepulsion = new PVector();
         PVector desiredAttraction = new PVector();
         for (PVector element : neighbours)
@@ -357,21 +341,30 @@ public class Boid
 
     public void integrate()
     {
-        PVector oldvel = velocity.copy();
         acceleration.limit(maxForce);
+        PVector cross = velocity.cross(normal);
         velocity.add(acceleration);
+//        normal.add(acceleration);
+        PVector oldnormal = normal.copy();
         if (maxVel > 0)
         {
+            //TODO(bryn): In order for normals to be correct, the "acceleration" must be expressed in terms of the normals direction (i.e. a deceleration of the velocity vector will actually shear the normal vector
+//            normal.limit(maxVel);
             velocity.limit(maxVel);
+            normal = velocity.cross(cross);
+            if (normal.dot(oldnormal) < 0)
+            {
+                normal.mult(-1);
+            }
+            normal = normal.normalize();
         }
-        normal.normalize();
-        normal.add(PVector.sub(velocity, oldvel));
         position.add(velocity);
         acceleration = new PVector();
     }
 
     public void draw(float scalar, boolean drawSight)
     {
+
         app.pushMatrix();
         app.translate(position.x, position.y, position.z);
 
@@ -380,7 +373,11 @@ public class Boid
         //Synth.Plane pl = new Synth.Plane(new PVector(0, 0, 0), normal, velocity);
         PVector v = velocity.copy();
         v.normalize();
+        PVector n = normal.copy();
+        n.normalize();
         app.line(0, 0, 0, scalar * v.x, scalar * v.y, scalar * v.z);
+        app.stroke(0, 255, 0);
+        app.line(0, 0, 0, scalar * n.x, scalar * n.y, scalar * n.z);
 
         app.popMatrix();
         if (drawSight)

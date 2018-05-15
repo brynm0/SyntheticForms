@@ -210,10 +210,10 @@ public class MeshCollection
         //For each vertex connected to the closest one, try to project onto the edge they make. return the closest one
         PVector closestInterpolatedPoint = null;
         PVector closestInterpolatedNormal = new PVector();
-        for (int i = 0; i < faceVertsIndices.size(); i++)
+        for (Integer[] var : faceVertsIndices)
         {
 
-            int currentIndex = faceVertsIndices.get(i)[1];
+            int currentIndex = var[1];
             if (currentIndex % 4 == 0)
             {
                 //Start of face
