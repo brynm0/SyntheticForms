@@ -2,7 +2,6 @@ package Synth;
 
 import processing.core.PApplet;
 import processing.core.PVector;
-import sun.plugin2.main.client.WIExplorerServiceDelegate;
 
 import java.util.ArrayList;
 import java.util.Hashtable;

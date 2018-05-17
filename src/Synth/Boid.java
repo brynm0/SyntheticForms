@@ -15,7 +15,7 @@ public class Boid
     float sightInner;
     float sightOuter;
     private float mass;
-    private float maxVel;
+    float maxVel;
     private float maxForce;
     private PVector acceleration;
     private PApplet app;
@@ -484,19 +484,37 @@ public class Boid
     {
 
         app.pushMatrix();
-        app.translate(position.x, position.y, position.z);
+        if (moves)
+        {
+            app.translate(position.x, position.y, position.z);
 
-        app.stroke(255, 0, 0);
-        app.noFill();
-        //Synth.Plane pl = new Synth.Plane(new PVector(0, 0, 0), normal, velocity);
-        PVector v = velocity.copy();
-        v.normalize();
-        PVector n = normal.copy();
-        n.normalize();
-        app.line(0, 0, 0, scalar * v.x, scalar * v.y, scalar * v.z);
-        app.stroke(0, 255, 0);
-        app.line(0, 0, 0, scalar * n.x, scalar * n.y, scalar * n.z);
+            app.stroke(255, 0, 0);
+            app.noFill();
+            //Synth.Plane pl = new Synth.Plane(new PVector(0, 0, 0), normal, velocity);
+            PVector v = velocity.copy();
+            v.normalize();
+            PVector n = normal.copy();
+            n.normalize();
+            app.line(0, 0, 0, scalar * v.x, scalar * v.y, scalar * v.z);
+            app.stroke(0, 255, 0);
+            app.line(0, 0, 0, scalar * n.x, scalar * n.y, scalar * n.z);
 
+        }
+        else
+        {
+            app.translate(position.x, position.y, position.z);
+
+            app.stroke(0,0,255);
+            app.noFill();
+            //Synth.Plane pl = new Synth.Plane(new PVector(0, 0, 0), normal, velocity);
+            PVector v = velocity.copy();
+            v.normalize();
+            PVector n = normal.copy();
+            n.normalize();
+            app.line(0, 0, 0, scalar * v.x, scalar * v.y, scalar * v.z);
+            app.line(0, 0, 0, scalar * n.x, scalar * n.y, scalar * n.z);
+
+        }
         app.popMatrix();
         if (drawSight)
         {

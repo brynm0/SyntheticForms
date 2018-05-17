@@ -3,46 +3,48 @@ package Synth;
 import peasy.PeasyCam;
 import processing.core.PApplet;
 import processing.core.PVector;
-import sun.management.BaseOperatingSystemImpl;
 
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.PrintWriter;
-import java.lang.reflect.Array;
 import java.net.URI;
 import java.nio.charset.Charset;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.HashMap;
-import java.util.ListIterator;
 
 public class SynthMain extends PApplet
 {
     static boolean drawNeighbours = false;
-    private boolean paused = false;
-    private boolean drawMesh = false;
     boolean saveFrames = false;
     boolean drawTrails = true;
-    private boolean drawBoids = true;
     boolean firstPass = false;
+    ArrayList<Graph> nodes;
+    ArrayList<ArrayList<Graph>> visited;
+    ArrayList<HashMap<PVector, Integer>> vismap;
+    ArrayList<ArrayList<PVector>> prevPositions;
+    KDTree graphVertexTree;
+    HashMap<PVector, Integer> graphMap;
+    ArrayList<Integer> lastIndexKept = new ArrayList<>();
+    int totalFramesSaved = 0;
+    int numTraversed = 0;
+    HashMap<PVector, Integer[]> boidMapSecondPass;
+    boolean secondPassInit = false;
+    private boolean paused = false;
+    private boolean drawMesh = false;
+    private boolean drawBoids = true;
     private boolean drawEllipse = false;
     //Whether the agents should attract/repel and follow given curves
     private long fileID;
     private float scaleFactor;
-    ArrayList<Graph> nodes;
-    ArrayList<ArrayList<Graph>> visited;
-    ArrayList<HashMap<PVector, Integer>> vismap;
-
     private PVector[] population;
     private KDTree boidTree;
     private HashMap<PVector, Integer> boidMap;
     private ArrayList<Boid> boids;
     private int boidCount = 150;
     private int frameNum = 0;
-
     private MeshCollection columnCol, supportCol;
 
     public static void main(String[] args)
@@ -102,6 +104,7 @@ public class SynthMain extends PApplet
         }
         return outList;
     }
+
     private static ArrayList<ArrayList<PVector>> readCrvs(String absolutePath)
     {
         Charset charset = Charset.forName("US-ASCII");
@@ -109,7 +112,7 @@ public class SynthMain extends PApplet
         Path file = Paths.get(URI.create(p));
 
         System.out.println(file);
-        ArrayList<ArrayList<PVector>>  outList = new ArrayList<>();
+        ArrayList<ArrayList<PVector>> outList = new ArrayList<>();
         try (BufferedReader reader = Files.newBufferedReader(file, charset))
         {
 
@@ -137,6 +140,18 @@ public class SynthMain extends PApplet
         return outList;
     }
 
+    public static boolean arrayContains(Object[] array, Object test)
+    {
+        for (Object o : array)
+        {
+            if (o.equals(test))
+            {
+                return true;
+            }
+        }
+        return false;
+    }
+
     /*
      * This method is one that must be used when working with Processing in Intellij
      * Generally only used to declare the size of the window, and the type of renderer being used
@@ -145,8 +160,6 @@ public class SynthMain extends PApplet
     {
         size(1280, 720, P3D);
     }
-
-    ArrayList<ArrayList<PVector>> prevPositions;
 
     public void setup()
     {
@@ -165,8 +178,16 @@ public class SynthMain extends PApplet
         System.out.println(OS);
         ArrayList<Mesh> meshlist;
         Mesh column, support;
+        String currentDirectory;
+        if (OS.contains("Windows"))
+        {
+            currentDirectory = "/Users/evilg/Google%20Drive/Architecture/2018/Semester%201/Synthetic%20Forms/Week%2011/Chunk/test/";
+        }
+        else
+        {
+            currentDirectory = "/home/bryn/SyntheticForms/Chunk/";
 
-        String currentDirectory = "/Users/evilg/Google%20Drive/Architecture/2018/Semester%201/Synthetic%20Forms/Week%2011/Chunk/test/";
+        }
         meshlist = Mesh.readMeshes(currentDirectory + "column.obj", this);
         column = meshlist.get(0);
         nodes = Graph.readGraphListFromFile(currentDirectory + "connections.txt", this);
@@ -238,8 +259,6 @@ public class SynthMain extends PApplet
         prevPositions = readCrvs(currentDirectory + "crvs.txt");
     }
 
-    KDTree graphVertexTree;
-    HashMap<PVector, Integer> graphMap;
     public void draw()
     {
         frameNum++;
@@ -249,7 +268,7 @@ public class SynthMain extends PApplet
             fill(255);
             columnCol.drawAllWires(20, 1);
             supportCol.drawAllWires(0, 1);
-            for (Graph g : nodes                 )
+            for (Graph g : nodes)
             {
                 g.drawAllConnections(1, 127);
             }
@@ -272,30 +291,43 @@ public class SynthMain extends PApplet
         }
         if (drawTrails)
         {
-            for (int j = 0; j < prevPositions.size(); j++)
+//            for (int j = 0; j < prevPositions.size(); j++)
+//            {
+            ArrayList<PVector> curve = prevPositions.get(0);
+            stroke(0, 255, 0);
+            strokeWeight(1);
+            if (curve.size() < 4)
             {
-                ArrayList<PVector> curve = prevPositions.get(j);
-                if (curve.size() > 3)
+                for (int i = 0; i < curve.size() - 1; i++)
                 {
-                    for (int i = 0; i < curve.size() - 1; i++)
-                    {
-                        PVector curr = curve.get(i);
-                        PVector next = curve.get(i + 1);
-                        line(curr.x, curr.y, curr.z, next.x, next.y, next.z);
-                    }
-                }
-                else
-                {
-                    noFill();
-                    beginShape();
-                    for (PVector curr : curve)
-                    {
-                        curveVertex(curr.x, curr.y, curr.z);
-                    }
-                    endShape();
-
+                    PVector curr = curve.get(i);
+                    PVector next = curve.get(i + 1);
+                    line(curr.x, curr.y, curr.z, next.x, next.y, next.z);
                 }
             }
+            else
+            {
+                noFill();
+                beginShape();
+                for (PVector curr : curve)
+                {
+                    curveVertex(curr.x, curr.y, curr.z);
+                }
+                endShape();
+
+//                }
+            }
+            for (PVector vertex : curve)
+            {
+                pushMatrix();
+                translate(vertex.x, vertex.y, vertex.z);
+                noStroke();
+                fill(255, 0, 255);
+                ellipse(0, 0, 1, 1);
+
+                popMatrix();
+            }
+            strokeWeight(1);
         }
         if (saveFrames && frameNum % 2 == 0 && !paused)
         {
@@ -304,12 +336,6 @@ public class SynthMain extends PApplet
         }
 
     }
-
-    ArrayList<Integer> lastIndexKept = new ArrayList<>();
-
-    int totalFramesSaved = 0;
-    int numTraversed = 0;
-    HashMap<PVector, Integer[]> boidMapSecondPass;
 
     private void firstPass()
     {
@@ -322,7 +348,7 @@ public class SynthMain extends PApplet
             ArrayList<PVector> neighbours = boidTree.radiusNeighbours(curr.position, curr.sightOuter);
             if (curr.moves)
             {
-                numTraversed = curr.traverseGraph(nodes, vismap, visited, graphMap, i, graphVertexTree, 10, numTraversed, 1);
+                numTraversed = curr.traverseGraph(nodes, vismap, visited, graphMap, i, graphVertexTree, curr.maxVel * 0.9f, numTraversed, 1);
                 curr.repelMesh(columnCol, 1);
 //                    curr.cohesionRepulsion(neighbours);
                 curr.align(neighbours, boids, population, boidMap);
@@ -332,7 +358,7 @@ public class SynthMain extends PApplet
                 boidMap.put(curr.position, i);
             }
         }
-        if (frameNum % 50 == 0 )
+        if (frameNum % 50 == 0)
         {
             System.out.println(numTraversed + "/" + nodes.size());
         }
@@ -344,38 +370,106 @@ public class SynthMain extends PApplet
         }
     }
 
-    boolean secondPassInit = false;
     private void secondPass()
     {
         if (!secondPassInit)
         {
             System.out.println("Commencing second pass");
             firstPass = false;
+            ArrayList<ArrayList<Integer>> fixedPointIndices = new ArrayList<>();
+            for (int i = 0; i < prevPositions.size(); i++)
+            {
+                fixedPointIndices.add(new ArrayList<>());
+                for (int j = 0; j < prevPositions.get(i).size(); j++)
+                {
+                    if (prevPositions.get(i).get(j).dist(graphVertexTree.nearestNeighbor(prevPositions.get(i).get(j))) <= boids.get(i).maxVel * 0.4f)
+                    {
+                        fixedPointIndices.get(i).add(j);
+                    }
+                }
+                prevPositions.set(i, CurveCollection.divDist(prevPositions.get(i), 25, fixedPointIndices.get(i)));
+
+            }
+
+            ArrayList<PVector> normals = new ArrayList<>();
+            ArrayList<PVector> velocities = new ArrayList<>();
             ArrayList<PVector> tempPop = new ArrayList<>();
+            ArrayList<Boolean> movesArray = new ArrayList<>();
             boidMapSecondPass = new HashMap<>();
             for (int i = 0; i < prevPositions.size(); i++)
             {
-                for (int j = 0; j < prevPositions.get(i).size(); j+=10)
+                for (int j = 0; j < prevPositions.get(i).size(); j++)
                 {
+                    PVector normal;
+                    if (j == prevPositions.get(i).size() - 1)
+                    {
+                        PVector prev = prevPositions.get(i).get(j - 1);
+                        PVector prevToCurr = PVector.sub(prevPositions.get(i).get(j), prevPositions.get(i).get(j-1));
+                        prevToCurr = prevToCurr.normalize();
+                        velocities.add(prevToCurr);
+                        normal = new PVector(1,0,0).cross(prevToCurr);
+                    }
+                    else if (j == 0)
+                    {
+                        PVector next = prevPositions.get(i).get(j+1);
+                        PVector currToNext = PVector.sub(next, prevPositions.get(i).get(j));
+                        currToNext.normalize();
+                        velocities.add(currToNext);
+                        normal = new PVector(1,0,0).cross(currToNext);
+                    }
+                    else
+                    {
+                        PVector prev = prevPositions.get(i).get(j - 1);
+                        PVector next = prevPositions.get(i).get(j+1);
+                        PVector prevToNext = PVector.sub()
+                    }
+                    normals.add(normal);
                     tempPop.add(prevPositions.get(i).get(j));
+                    if (fixedPointIndices.get(i).contains(j))
+                    {
+                        movesArray.add(false);
+                    }
+                    else
+                    {
+                        movesArray.add(true);
+                    }
                     boidMapSecondPass.put(prevPositions.get(i).get(j), new Integer[]{i, j});
                 }
             }
             population = tempPop.toArray(new PVector[0]);
             boids = new ArrayList<>();
-            boidMapSecondPass = new HashMap<>();
+            boidMap = new HashMap<>();
             for (int i = 0; i < population.length; i++)
             {
-                Boid newboid = new Boid(random(5, 10), population[i], random(1, 6),
-                        random(1, 6), new PVector(1, 0, 0), random(50, 150), this);
+                Boid newboid = new Boid(random(5, 10),
+                        population[i], 2, 0.25f,
+                        new PVector(1, 0, 0),
+                        random(50, 150), this);
                 newboid.velocity = newboid.normal.cross(new PVector(0, 0, 1)).normalize();
+                newboid.moves = movesArray.get(i);
                 boids.add(newboid);
                 boidMap.put(boids.get(i).position, i);
             }
             System.out.println(boids.size());
+
+            System.out.println("Initialised second pass");
             secondPassInit = true;
-            drawTrails = false;
+//            drawTrails = false;
         }
+//        boidTree = new KDTree(population, 0, this);
+//        for (int i = 0; i < boids.size(); i++)
+//        {
+//            Boid curr = boids.get(i);
+//            ArrayList<PVector> neighbours = boidTree.radiusNeighbours(curr.position, curr.sightOuter);
+//            if (curr.moves)
+//            {
+//                curr.repelMesh(columnCol, 1);
+//                curr.align(neighbours, boids, population, boidMap);
+//                boidMap.remove(curr.position);
+//                curr.integrate();
+//                boidMap.put(curr.position, i);
+//            }
+//        }
     }
 
     /*
@@ -504,7 +598,7 @@ public class SynthMain extends PApplet
         {
             System.out.println("writing positions");
             out = new PrintWriter(fileID + "position" + ".txt");
-            for (int i  = 0; i < prevPositions.size(); i++)
+            for (int i = 0; i < prevPositions.size(); i++)
             {
                 out.println("object_" + i);
                 for (PVector position : prevPositions.get(i))

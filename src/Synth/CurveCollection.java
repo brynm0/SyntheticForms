@@ -21,6 +21,52 @@ public class CurveCollection
         curvePointTree = createCurveTree();
     }
 
+    public static ArrayList<PVector> divDist(ArrayList<PVector> inCrv, float targetDist, ArrayList<Integer> fixed)
+    {
+        ArrayList<PVector> outList = new ArrayList<>();
+        float runningDist = 0;
+        for (int i = 0; i < inCrv.size(); i++)
+        {
+            PVector curr = inCrv.get(i);
+//            PVector next = null;
+            PVector prev = null;
+            if (i != 0)
+            {
+                prev = inCrv.get(i - 1);
+            }
+//            if (i != inCrv.size() - 1)
+//            {
+//                next = inCrv.get(i);
+//            }
+            else
+            {
+
+            }
+            if (i == 0 || i == inCrv.size() - 1)
+            {
+                outList.add(curr);
+            }
+            else if (fixed.contains(i))
+            {
+
+                outList.add(curr);
+                runningDist = 0;
+            }
+            else if (prev != null && prev.dist(curr) + runningDist > targetDist)
+            {
+                float t = (targetDist) / ((prev.dist(curr) - runningDist));
+                PVector result = SynthMath.lerpVector(prev, curr, t);
+                outList.add(result);
+                runningDist = 0;
+            }
+            else
+            {
+                runningDist += prev.dist(curr);
+            }
+        }
+        return outList;
+    }
+
     private Hashtable<PVector, int[]> createCurveMap()
     {
         Hashtable<PVector, int[]> curveMap = new Hashtable<>();
@@ -58,7 +104,6 @@ public class CurveCollection
         return out;
     }
 
-
     private KDTree createCurveTree()
     {
         PVector[] tempArray = explodeAllCurves();
@@ -67,9 +112,9 @@ public class CurveCollection
 
     public void move(PVector transform)
     {
-        for (ArrayList<PVector> list : curves             )
+        for (ArrayList<PVector> list : curves)
         {
-            for (PVector vertex : list                 )
+            for (PVector vertex : list)
             {
                 vertex.add(transform);
             }
@@ -80,9 +125,9 @@ public class CurveCollection
 
     public void scale(float scaleFactor, PVector scaleOrigin)
     {
-        for (ArrayList<PVector> curve : curves             )
+        for (ArrayList<PVector> curve : curves)
         {
-            for (int i = 0; i < curve.size(); i++                 )
+            for (int i = 0; i < curve.size(); i++)
             {
                 PVector scl = PVector.sub(curve.get(i), scaleOrigin);
                 scl.mult(scaleFactor);
@@ -110,6 +155,4 @@ public class CurveCollection
         }
 
     }
-
-
 }
