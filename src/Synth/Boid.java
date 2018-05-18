@@ -1,7 +1,6 @@
 package Synth;
 
 import processing.core.PApplet;
-import processing.core.PConstants;
 import processing.core.PVector;
 
 import java.util.ArrayList;
@@ -14,12 +13,12 @@ public class Boid
     public PVector normal;
     float sightInner;
     float sightOuter;
-    private float mass;
     float maxVel;
+    boolean moves = true;
+    private float mass;
     private float maxForce;
     private PVector acceleration;
     private PApplet app;
-    boolean moves = true;
 
 
     public Boid(PApplet _app)
@@ -220,6 +219,80 @@ public class Boid
         tempAccel = tempAccel.normalize();
         tempAccel.mult(weight);
         acceleration.add(tempAccel);
+    }
+
+    public void straighten(ArrayList<PVector> curve,
+                           int indexInCrv)
+    {
+        PVector prev = curve.get(indexInCrv - 1).copy();
+        PVector next = curve.get(indexInCrv + 1).copy();
+
+        PVector currToPrev = PVector.sub(prev, position).normalize();
+        PVector currToNext = PVector.sub(next, position).normalize();
+
+        float scalar = 1 - PApplet.abs((currToNext.dot(currToPrev)));
+        PVector average = PVector.add(prev, next).div(2);
+        PVector desired = PVector.sub(average, position).mult(scalar);
+        addSteer(desired);
+    }
+
+    public void seekCoTanPoint(ArrayList<PVector> neighbours, ArrayList<ArrayList<PVector>> curves, HashMap<PVector, Integer> map, ArrayList<Integer[]> boidCurveIndices)
+    {
+        PVector closest = null;
+        for (PVector neighbour : neighbours)
+        {
+            Integer[] indices = boidCurveIndices.get(map.get(neighbour));
+            Integer[] positionIndices = boidCurveIndices.get(map.get(position));
+            assert positionIndices != null : "Position null - " + position;
+            assert indices != null : "neigbour null - " + neighbour + " " + SynthMain.frameNum;
+            if (!indices[0].equals(positionIndices[0]))
+            {
+                closest = neighbour.copy();
+                break;
+            }
+        }
+        if (closest != null)
+        {
+            Integer[] indices = boidCurveIndices.get(map.get(closest));
+
+            PVector closestTangent;
+            if (indices[1] == 0)
+            {
+                closestTangent = PVector.sub(closest, curves.get(indices[0]).get(indices[1] + 1));
+            }
+            else if (indices[1] == curves.get(indices[0]).size() - 1)
+            {
+                closestTangent = PVector.sub(curves.get(indices[0]).get(indices[1] - 1), closest);
+            }
+            else
+            {
+                PVector prev = curves.get(indices[0]).get(indices[1] - 1);
+                PVector next = curves.get(indices[0]).get(indices[1] + 1);
+                closestTangent = PVector.sub(next, prev);
+            }
+
+            indices = boidCurveIndices.get(map.get(position));
+            PVector tangent;
+            if (indices[1] == 0)
+            {
+                tangent = PVector.sub(closest, curves.get(indices[0]).get(indices[1] + 1));
+            }
+            else if (indices[1] == curves.get(indices[0]).size() - 1)
+            {
+                tangent = PVector.sub(curves.get(indices[0]).get(indices[1] - 1), closest);
+            }
+            else
+            {
+                PVector prev = curves.get(indices[0]).get(indices[1] - 1);
+                PVector next = curves.get(indices[0]).get(indices[1] + 1);
+                tangent = PVector.sub(next, prev);
+            }
+            tangent = tangent.normalize();
+            closestTangent = closestTangent.normalize();
+
+            float scalar = PApplet.abs(closestTangent.dot(tangent));
+            attract(closest, scalar);
+        }
     }
 
     public void towardHorizontal(float degreesAngle)
@@ -462,15 +535,12 @@ public class Boid
         acceleration.limit(maxForce);
         PVector cross = velocity.cross(normal);
         velocity.add(acceleration);
-//        normal.add(acceleration);
-        PVector oldnormal = normal.copy();
+        PVector oldNormal = normal.copy();
         if (maxVel > 0)
         {
-            //TODO(bryn): In order for normals to be correct, the "acceleration" must be expressed in terms of the normals direction (i.e. a deceleration of the velocity vector will actually shear the normal vector
-//            normal.limit(maxVel);
             velocity.limit(maxVel);
             normal = velocity.cross(cross);
-            if (normal.dot(oldnormal) < 0)
+            if (normal.dot(oldNormal) < 0)
             {
                 normal.mult(-1);
             }
@@ -478,6 +548,7 @@ public class Boid
         }
         position.add(velocity);
         acceleration = new PVector();
+        assert position != null;
     }
 
     public void draw(float scalar, boolean drawSight)
@@ -504,7 +575,7 @@ public class Boid
         {
             app.translate(position.x, position.y, position.z);
 
-            app.stroke(0,0,255);
+            app.stroke(0, 0, 255);
             app.noFill();
             //Synth.Plane pl = new Synth.Plane(new PVector(0, 0, 0), normal, velocity);
             PVector v = velocity.copy();

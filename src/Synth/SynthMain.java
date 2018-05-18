@@ -18,9 +18,11 @@ import java.util.HashMap;
 public class SynthMain extends PApplet
 {
     static boolean drawNeighbours = false;
+    static int frameNum = 0;
     boolean saveFrames = false;
-    boolean drawTrails = true;
+    boolean drawTrails = false;
     boolean firstPass = false;
+    boolean obnoxious = false;
     ArrayList<Graph> nodes;
     ArrayList<ArrayList<Graph>> visited;
     ArrayList<HashMap<PVector, Integer>> vismap;
@@ -30,8 +32,8 @@ public class SynthMain extends PApplet
     ArrayList<Integer> lastIndexKept = new ArrayList<>();
     int totalFramesSaved = 0;
     int numTraversed = 0;
-    HashMap<PVector, Integer[]> boidMapSecondPass;
     boolean secondPassInit = false;
+    ArrayList<Integer[]> boidCurveIndices;
     private boolean paused = false;
     private boolean drawMesh = false;
     private boolean drawBoids = true;
@@ -44,7 +46,6 @@ public class SynthMain extends PApplet
     private HashMap<PVector, Integer> boidMap;
     private ArrayList<Boid> boids;
     private int boidCount = 150;
-    private int frameNum = 0;
     private MeshCollection columnCol, supportCol;
 
     public static void main(String[] args)
@@ -255,23 +256,32 @@ public class SynthMain extends PApplet
         //Creating a new KDTree and searching it each time they move is still faster than brute force searching.
         boidTree = new KDTree(population, 0, this);
         System.out.println("beginning main loop");
-        paused = true;
         prevPositions = readCrvs(currentDirectory + "crvs.txt");
     }
 
     public void draw()
     {
         frameNum++;
-        background(255);
+        if (obnoxious)
+        {
+            background(235, 104, 65, 255);
+
+        }
+        else
+        {
+            background(255);
+        }
         if (drawMesh)
         {
             fill(255);
-            columnCol.drawAllWires(20, 1);
-            supportCol.drawAllWires(0, 1);
-            for (Graph g : nodes)
-            {
-                g.drawAllConnections(1, 127);
-            }
+
+            columnCol.drawAllWires(color(209, 217, 211, 255), 1);
+//            supportCol.drawAllWires(0, 0.25f);
+//            for (Graph g : nodes)
+//            {
+//                g.drawAllConnections(0.25f, 127);
+//            }
+//            strokeWeight(1);
         }
         if (!paused)
         {
@@ -291,50 +301,39 @@ public class SynthMain extends PApplet
         }
         if (drawTrails)
         {
-//            for (int j = 0; j < prevPositions.size(); j++)
-//            {
-            ArrayList<PVector> curve = prevPositions.get(0);
-            stroke(0, 255, 0);
-            strokeWeight(1);
-            if (curve.size() < 4)
+            for (ArrayList<PVector> curve : prevPositions)
             {
-                for (int i = 0; i < curve.size() - 1; i++)
+//            ArrayList<PVector> curve = prevPositions.get(0);
+                stroke(0, 160, 176, 255);
+                strokeWeight(0.25f);
+                if (curve.size() < 4)
                 {
-                    PVector curr = curve.get(i);
-                    PVector next = curve.get(i + 1);
-                    line(curr.x, curr.y, curr.z, next.x, next.y, next.z);
+                    for (int i = 0; i < curve.size() - 1; i++)
+                    {
+                        PVector curr = curve.get(i);
+                        PVector next = curve.get(i + 1);
+                        line(curr.x, curr.y, curr.z, next.x, next.y, next.z);
+                    }
                 }
-            }
-            else
-            {
-                noFill();
-                beginShape();
-                for (PVector curr : curve)
+                else
                 {
-                    curveVertex(curr.x, curr.y, curr.z);
+                    noFill();
+                    beginShape();
+                    for (PVector curr : curve)
+                    {
+                        curveVertex(curr.x, curr.y, curr.z);
+                    }
+                    endShape();
+
                 }
-                endShape();
-
-//                }
+                strokeWeight(1);
             }
-            for (PVector vertex : curve)
-            {
-                pushMatrix();
-                translate(vertex.x, vertex.y, vertex.z);
-                noStroke();
-                fill(255, 0, 255);
-                ellipse(0, 0, 1, 1);
-
-                popMatrix();
-            }
-            strokeWeight(1);
         }
-        if (saveFrames && frameNum % 2 == 0 && !paused)
-        {
-            totalFramesSaved++;
-            saveFrame(Integer.toString(totalFramesSaved));
-        }
-
+//        if (saveFrames && frameNum % 2 == 0 && !paused)
+//        {
+//            totalFramesSaved++;
+//            saveFrame(Integer.toString(totalFramesSaved));
+//        }
     }
 
     private void firstPass()
@@ -395,7 +394,7 @@ public class SynthMain extends PApplet
             ArrayList<PVector> velocities = new ArrayList<>();
             ArrayList<PVector> tempPop = new ArrayList<>();
             ArrayList<Boolean> movesArray = new ArrayList<>();
-            boidMapSecondPass = new HashMap<>();
+            boidCurveIndices = new ArrayList<>();
             for (int i = 0; i < prevPositions.size(); i++)
             {
                 for (int j = 0; j < prevPositions.get(i).size(); j++)
@@ -404,28 +403,37 @@ public class SynthMain extends PApplet
                     if (j == prevPositions.get(i).size() - 1)
                     {
                         PVector prev = prevPositions.get(i).get(j - 1);
-                        PVector prevToCurr = PVector.sub(prevPositions.get(i).get(j), prevPositions.get(i).get(j-1));
+                        PVector prevToCurr = PVector.sub(prevPositions.get(i).get(j), prev);
                         prevToCurr = prevToCurr.normalize();
                         velocities.add(prevToCurr);
-                        normal = new PVector(1,0,0).cross(prevToCurr);
+                        normal = new PVector(1, 0, 0).cross(prevToCurr);
                     }
                     else if (j == 0)
                     {
-                        PVector next = prevPositions.get(i).get(j+1);
+                        PVector next = prevPositions.get(i).get(j + 1);
                         PVector currToNext = PVector.sub(next, prevPositions.get(i).get(j));
                         currToNext.normalize();
                         velocities.add(currToNext);
-                        normal = new PVector(1,0,0).cross(currToNext);
+                        normal = new PVector(1, 0, 0).cross(currToNext);
                     }
                     else
                     {
                         PVector prev = prevPositions.get(i).get(j - 1);
-                        PVector next = prevPositions.get(i).get(j+1);
-                        PVector prevToNext = PVector.sub()
+                        PVector next = prevPositions.get(i).get(j + 1);
+                        PVector cp = SynthMath.lineCP2(prev, next, prevPositions.get(i).get(j));
+                        normal = PVector.sub(prevPositions.get(i).get(j), cp);
+                        PVector prevToNext = PVector.sub(next, prev);
+                        prevToNext.normalize();
+                        velocities.add(prevToNext);
                     }
                     normals.add(normal);
                     tempPop.add(prevPositions.get(i).get(j));
-                    if (fixedPointIndices.get(i).contains(j))
+                    boidCurveIndices.add(new Integer[]{i, j});
+                    if (j == 0 || j == prevPositions.get(i).size() - 1)
+                    {
+                        movesArray.add(false);
+                    }
+                    else if (prevPositions.get(i).get(j).dist(graphVertexTree.nearestNeighbor(prevPositions.get(i).get(j))) <= boids.get(i).maxVel * 0.3f)
                     {
                         movesArray.add(false);
                     }
@@ -433,7 +441,6 @@ public class SynthMain extends PApplet
                     {
                         movesArray.add(true);
                     }
-                    boidMapSecondPass.put(prevPositions.get(i).get(j), new Integer[]{i, j});
                 }
             }
             population = tempPop.toArray(new PVector[0]);
@@ -441,35 +448,51 @@ public class SynthMain extends PApplet
             boidMap = new HashMap<>();
             for (int i = 0; i < population.length; i++)
             {
-                Boid newboid = new Boid(random(5, 10),
-                        population[i], 2, 0.25f,
-                        new PVector(1, 0, 0),
-                        random(50, 150), this);
-                newboid.velocity = newboid.normal.cross(new PVector(0, 0, 1)).normalize();
+                assert population[i] != null;
+                Boid newboid = new Boid(6,
+                        population[i].copy(), 5, 1,
+                        normals.get(i), 35, this);
+                newboid.velocity = velocities.get(i);
                 newboid.moves = movesArray.get(i);
                 boids.add(newboid);
-                boidMap.put(boids.get(i).position, i);
+                boidMap.put(population[i], i);
             }
             System.out.println(boids.size());
 
             System.out.println("Initialised second pass");
             secondPassInit = true;
-//            drawTrails = false;
         }
-//        boidTree = new KDTree(population, 0, this);
-//        for (int i = 0; i < boids.size(); i++)
-//        {
-//            Boid curr = boids.get(i);
-//            ArrayList<PVector> neighbours = boidTree.radiusNeighbours(curr.position, curr.sightOuter);
-//            if (curr.moves)
-//            {
-//                curr.repelMesh(columnCol, 1);
-//                curr.align(neighbours, boids, population, boidMap);
-//                boidMap.remove(curr.position);
-//                curr.integrate();
-//                boidMap.put(curr.position, i);
-//            }
-//        }
+        boidTree = new KDTree(population, 0, this);
+        PVector[] populationCopy = new PVector[population.length];
+        HashMap<PVector, Integer> boidMapCopy = (HashMap<PVector, Integer>) boidMap.clone();
+        if (!paused)
+        {
+            for (int i = 0; i < boids.size(); i++)
+            {
+                boidMapCopy.remove(boids.get(i).position, i);
+                if (boids.get(i).moves)
+                {
+                    ArrayList<PVector> neighbours = boidTree.radiusNeighbours(boids.get(i).position.copy(), boids.get(i).sightOuter);
+                    boids.get(i).straighten(prevPositions.get(boidCurveIndices.get(i)[0]), boidCurveIndices.get(i)[1]);
+                    try
+                    {
+                        boids.get(i).seekCoTanPoint(neighbours, prevPositions, boidMap, boidCurveIndices);
+                    }
+                    catch (NullPointerException e)
+                    {
+                        System.out.println("NullPointerException : " + e);
+                        saveBoids();
+                        paused = true;
+                    }
+                    boids.get(i).integrate();
+                }
+                boidMapCopy.put(boids.get(i).position.copy(), i);
+                populationCopy[i] = boids.get(i).position.copy();
+                prevPositions.get(boidCurveIndices.get(i)[0]).set(boidCurveIndices.get(i)[1], boids.get(i).position.copy());
+            }
+            boidMap = boidMapCopy;
+            population = populationCopy;
+        }
     }
 
     /*
@@ -532,6 +555,14 @@ public class SynthMain extends PApplet
         else if (key == 't')
         {
             drawTrails = !drawTrails;
+        }
+        else if (key == 's')
+        {
+            saveFrame(Integer.toString(frameNum));
+        }
+        else if (key == 'o')
+        {
+            obnoxious = !obnoxious;
         }
     }
 

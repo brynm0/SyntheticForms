@@ -287,10 +287,10 @@ public class Mesh
     }
 
 
-    public void drawWires(int strokeCol, int strokeWeight)
+    public void drawWires(int strokeCol, float strokeWeight)
     {
         app.beginShape();
-        app.stroke(0,0,0, strokeCol);
+        app.stroke(strokeCol);
         app.strokeWeight(strokeWeight);
         app.noFill();
         for (int i = 0; i < faceVerts.size(); i++)

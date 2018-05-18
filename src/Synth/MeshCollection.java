@@ -312,7 +312,7 @@ public class MeshCollection
         createMeshMap();
     }
 
-    public void drawAllWires(int strokeCol, int strokeWeight)
+    public void drawAllWires(int strokeCol, float strokeWeight)
     {
         for (Mesh m : meshes)
         {
