@@ -244,7 +244,7 @@ public class Boid
             Integer[] indices = boidCurveIndices.get(map.get(neighbour));
             Integer[] positionIndices = boidCurveIndices.get(map.get(position));
             assert positionIndices != null : "Position null - " + position;
-            assert indices != null : "neigbour null - " + neighbour + " " + SynthMain.frameNum;
+            assert indices != null : "neighbour null - " + neighbour + " " + SynthMain.frameNum;
             if (!indices[0].equals(positionIndices[0]))
             {
                 closest = neighbour.copy();
@@ -290,7 +290,7 @@ public class Boid
             tangent = tangent.normalize();
             closestTangent = closestTangent.normalize();
 
-            float scalar = PApplet.abs(closestTangent.dot(tangent));
+            float scalar = 2 * PApplet.abs(closestTangent.dot(tangent));
             attract(closest, scalar);
         }
     }
@@ -511,7 +511,7 @@ public class Boid
                 PVector normal = potential.normal;
                 float angle = PApplet.abs(90.0f - PApplet.degrees(PApplet.acos(normal.normalize().dot(new PVector(0, 0, 1)))));
                 float distcontribution = position.dist(potential.nodePos) / 2.0f;
-                float potentialFitness = potential.timesVisited * 25.0f + angle * 2;
+                float potentialFitness = distcontribution / 2 + potential.timesVisited * 2.5f + angle * 2;
                 if (potentialFitness < recordFitness)
                 {
                     recordFitness = potentialFitness;

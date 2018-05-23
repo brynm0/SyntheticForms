@@ -83,7 +83,6 @@ public class CurveCollection
         }
         return curveMap;
     }
-
     private PVector[] explodeAllCurves()
     {
         int totalSize = 0;
@@ -102,6 +101,8 @@ public class CurveCollection
             }
         }
         return out;
+
+
     }
 
     private KDTree createCurveTree()

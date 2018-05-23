@@ -104,7 +104,10 @@ public class Graph
                 {
                     String[] points = line.split(" ");
                     PVector position = new PVector(Float.parseFloat(points[0]), Float.parseFloat(points[1]), Float.parseFloat(points[2]));
-                    PVector norm = new PVector(Float.parseFloat(points[3]), Float.parseFloat(points[4]), Float.parseFloat(points[5]));
+                    float n1 = Float.parseFloat(points[4]);
+                    float n2 = Float.parseFloat(points[5]);
+                    float n3 = Float.parseFloat(points[6]);
+                    PVector norm = new PVector(n1, n2, n3);
                     Graph temp = new Graph(position, norm, _app);
                     graphList.add(temp);
                 }

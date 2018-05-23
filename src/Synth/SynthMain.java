@@ -20,9 +20,10 @@ public class SynthMain extends PApplet
     static boolean drawNeighbours = false;
     static int frameNum = 0;
     boolean saveFrames = false;
-    boolean drawTrails = false;
-    boolean firstPass = false;
-    boolean obnoxious = false;
+    boolean drawTrails = true;
+    boolean firstPass = true;
+    boolean obnoxious = true;
+    boolean drawGraph = false;
     ArrayList<Graph> nodes;
     ArrayList<ArrayList<Graph>> visited;
     ArrayList<HashMap<PVector, Integer>> vismap;
@@ -35,7 +36,7 @@ public class SynthMain extends PApplet
     boolean secondPassInit = false;
     ArrayList<Integer[]> boidCurveIndices;
     private boolean paused = false;
-    private boolean drawMesh = false;
+    private boolean drawMesh = true;
     private boolean drawBoids = true;
     private boolean drawEllipse = false;
     //Whether the agents should attract/repel and follow given curves
@@ -86,6 +87,7 @@ public class SynthMain extends PApplet
         String p = "file://" + absolutePath;
         Path file = Paths.get(URI.create(p));
 
+        System.out.println(file);
         System.out.println(file);
         ArrayList<PVector> outList = new ArrayList<>();
         try (BufferedReader reader = Files.newBufferedReader(file, charset))
@@ -256,7 +258,7 @@ public class SynthMain extends PApplet
         //Creating a new KDTree and searching it each time they move is still faster than brute force searching.
         boidTree = new KDTree(population, 0, this);
         System.out.println("beginning main loop");
-        prevPositions = readCrvs(currentDirectory + "crvs.txt");
+        System.out.println(boidCount);
     }
 
     public void draw()
@@ -265,7 +267,6 @@ public class SynthMain extends PApplet
         if (obnoxious)
         {
             background(235, 104, 65, 255);
-
         }
         else
         {
@@ -276,12 +277,15 @@ public class SynthMain extends PApplet
             fill(255);
 
             columnCol.drawAllWires(color(209, 217, 211, 255), 1);
-//            supportCol.drawAllWires(0, 0.25f);
-//            for (Graph g : nodes)
-//            {
-//                g.drawAllConnections(0.25f, 127);
-//            }
-//            strokeWeight(1);
+            supportCol.drawAllWires(0, 0.25f);
+        }
+        if (drawGraph)
+        {
+            for (Graph g : nodes)
+            {
+                g.drawAllConnections(0.25f, 127);
+            }
+            strokeWeight(1);
         }
         if (!paused)
         {
@@ -350,7 +354,7 @@ public class SynthMain extends PApplet
                 numTraversed = curr.traverseGraph(nodes, vismap, visited, graphMap, i, graphVertexTree, curr.maxVel * 0.9f, numTraversed, 1);
                 curr.repelMesh(columnCol, 1);
 //                    curr.cohesionRepulsion(neighbours);
-                curr.align(neighbours, boids, population, boidMap);
+                //curr.align(neighbours, boids, population, boidMap);
                 boidMap.remove(curr.position);
                 curr.integrate();
                 prevPositions.get(i).add(curr.position.copy());
@@ -563,6 +567,10 @@ public class SynthMain extends PApplet
         else if (key == 'o')
         {
             obnoxious = !obnoxious;
+        }
+        else if (key == 'g')
+        {
+            drawGraph = !drawGraph;
         }
     }
 
