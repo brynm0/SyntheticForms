@@ -19,11 +19,11 @@ public class SynthMain extends PApplet
 {
     static boolean drawNeighbours = false;
     static int frameNum = 0;
-    boolean saveFrames = false;
-    boolean drawTrails = true;
-    boolean firstPass = true;
-    boolean obnoxious = true;
-    boolean drawGraph = false;
+    boolean saveFrames = true;
+    private boolean drawTrails = false;
+    private boolean firstPass = true;
+    private boolean obnoxious = false;
+    private boolean drawGraph = false;
     ArrayList<Graph> nodes;
     ArrayList<ArrayList<Graph>> visited;
     ArrayList<HashMap<PVector, Integer>> vismap;
@@ -36,7 +36,7 @@ public class SynthMain extends PApplet
     boolean secondPassInit = false;
     ArrayList<Integer[]> boidCurveIndices;
     private boolean paused = false;
-    private boolean drawMesh = true;
+    private boolean drawMesh = false;
     private boolean drawBoids = true;
     private boolean drawEllipse = false;
     //Whether the agents should attract/repel and follow given curves
@@ -161,7 +161,7 @@ public class SynthMain extends PApplet
      */
     public void settings()
     {
-        size(1280, 720, P3D);
+        size(1000, 1000, P3D);
     }
 
     public void setup()
@@ -182,9 +182,10 @@ public class SynthMain extends PApplet
         ArrayList<Mesh> meshlist;
         Mesh column, support;
         String currentDirectory;
+
         if (OS.contains("Windows"))
         {
-            currentDirectory = "/Users/evilg/Google%20Drive/Architecture/2018/Semester%201/Synthetic%20Forms/Week%2011/Chunk/test/";
+            currentDirectory = "/Users/evilg/Google%20Drive/Architecture/2018/Semester%201/Synthetic%20Forms/Week%2012/test/";
         }
         else
         {
@@ -222,7 +223,6 @@ public class SynthMain extends PApplet
         visited = new ArrayList<>();
         vismap = new ArrayList<>();
         prevPositions = new ArrayList<>();
-
         for (int i = 0; i < population.length; i++)
         {
 
@@ -242,6 +242,7 @@ public class SynthMain extends PApplet
         columnCol = new MeshCollection(meshes, this);
         PVector[] graphVerts = new PVector[nodes.size()];
         graphMap = new HashMap<>();
+        System.out.println("generating graph");
         for (int i = 0; i < graphVerts.length; i++)
         {
             graphVerts[i] = nodes.get(i).nodePos.copy();
@@ -260,30 +261,53 @@ public class SynthMain extends PApplet
         System.out.println("beginning main loop");
         System.out.println(boidCount);
     }
-
+int framesUnpaused = 0;
     public void draw()
     {
         frameNum++;
+        int modulo = 200;
+        if (!firstPass)
+        {
+            modulo = 60;
+        }
+        if (!paused)
+        {
+            framesUnpaused++;
+        }
+        if (framesUnpaused % modulo == 0 || framesUnpaused == 0)
+        {
+            if (firstPass)
+            {
+                drawGraph = true;
+            }
+            else
+            {
+                drawGraph = false;
+            }
+            drawTrails = true;
+            drawBoids = false;
+
+        }
         if (obnoxious)
         {
             background(235, 104, 65, 255);
         }
         else
         {
-            background(255);
+            background(0);
         }
         if (drawMesh)
         {
             fill(255);
 
-            columnCol.drawAllWires(color(209, 217, 211, 255), 1);
-            supportCol.drawAllWires(0, 0.25f);
+            columnCol.drawAllWires(color(255,255,255, 255), 0.5f);
+            //supportCol.drawAllWires(0, 1);
         }
         if (drawGraph)
         {
             for (Graph g : nodes)
             {
-                g.drawAllConnections(0.25f, 127);
+                g.drawAllConnections(0.5f, color(255,255,255,255));
             }
             strokeWeight(1);
         }
@@ -309,7 +333,7 @@ public class SynthMain extends PApplet
             {
 //            ArrayList<PVector> curve = prevPositions.get(0);
                 stroke(0, 160, 176, 255);
-                strokeWeight(0.25f);
+                strokeWeight(1);
                 if (curve.size() < 4)
                 {
                     for (int i = 0; i < curve.size() - 1; i++)
@@ -333,11 +357,15 @@ public class SynthMain extends PApplet
                 strokeWeight(1);
             }
         }
-//        if (saveFrames && frameNum % 2 == 0 && !paused)
-//        {
-//            totalFramesSaved++;
-//            saveFrame(Integer.toString(totalFramesSaved));
-//        }
+        if (saveFrames && (framesUnpaused % modulo == 0  || framesUnpaused == 0) && !paused)
+        {
+            totalFramesSaved++;
+            System.out.println("saving");
+            saveFrame(Integer.toString(totalFramesSaved));
+            drawGraph = false;
+            drawTrails = false;
+            drawBoids = true;
+        }
     }
 
     private void firstPass()
@@ -542,7 +570,7 @@ public class SynthMain extends PApplet
         else if (key == ENTER)
         {
             //saveBoids();
-            savePrevPos();
+            savePrevPos(System.currentTimeMillis());
         }
         else if (key == 'm')
         {
@@ -628,7 +656,7 @@ public class SynthMain extends PApplet
         }
     }
 
-    private void savePrevPos()
+    private void savePrevPos(long stamp)
     {
         ArrayList<Plane> plArray = planeListFromBoidList(boids);
         PrintWriter out, outX, outY, outZ;
@@ -636,7 +664,7 @@ public class SynthMain extends PApplet
         try
         {
             System.out.println("writing positions");
-            out = new PrintWriter(fileID + "position" + ".txt");
+            out = new PrintWriter(stamp + "position" + ".txt");
             for (int i = 0; i < prevPositions.size(); i++)
             {
                 out.println("object_" + i);

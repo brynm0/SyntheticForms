@@ -67,12 +67,12 @@ public class Graph
 
     }
 
-    void drawAllConnections(float strokeWeight, float stroke)
+    void drawAllConnections(float strokeWeight, int stroke)
     {
         for (Graph g : connections)
         {
             app.strokeWeight(strokeWeight);
-            app.stroke(0,0,0,stroke);
+            app.stroke(stroke);
             app.line(nodePos.x, nodePos.y, nodePos.z, g.nodePos.x, g.nodePos.y, g.nodePos.z);
         }
     }
